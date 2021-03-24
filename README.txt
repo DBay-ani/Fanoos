@@ -1,11 +1,6 @@
 ** Fanoos: Multi-Resolution, Multi-Strength, Interactive Explanations for Learned Systems
 David Bayani and Stefan Mitsch ; paper at https://arxiv.org/abs/2006.12453
 
-----------
-Note, day22 month3 year2021: Code forthcoming in the next 14 hours (March 22nd, AoE time);
-README and License available now
-----------
-
 One can begin playing with the system by running:
 python3 fanoos.py
 See DEPENDENCIES.txt for a list of software dependencies this code has.
@@ -13,6 +8,8 @@ See DEPENDENCIES.txt for a list of software dependencies this code has.
 Configuration default values, which we highly encourage every user to visit,
 can be found in config/defaultValues.py .
 
+Note, day23 month3 year2021: The code to run the experiments is found in this
+repository. We will push the collection and summarization scripts at a later point.
 
 V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V
 LICENSE
@@ -88,9 +85,9 @@ Learned Systems And Domains Available in this Release
 Below files contain trained policies discussed in the paper along with code
 used to generate/learn/tweak them:
     -------------------
-    trainedNetworks/cpuLinearModel:
+    trainedNetworks/cpuPolynomialRegressionModel:
         ------------------
-        linearRegressionTrial.py
+        polynomialRegressionTrial.py
             -----------------
             NOTE: data used to learn the model here-produced is from 
             https://www.openml.org/api/v1/json/data/562 and
@@ -100,7 +97,7 @@ used to generate/learn/tweak them:
             (provided in the pickle file below) potentially may be considered a
             derivative work since it is trained using said data.
         -------------------
-        trainedLinearModelInfo.pickle
+        trainedPolynomialModelInfo.pickle
         -------------------
     trainedNetworks/invertedDoublePendulumBulletEnv_v0:
         ---------------------
@@ -113,7 +110,12 @@ used to generate/learn/tweak them:
             Please see https://github.com/araffin/rl-baselines-zoo/blob/master/LICENSE 
             for the license on the original learned network and 
             https://github.com/araffin/rl-baselines-zoo/tree/master/trained_agents/ppo2/InvertedDoublePendulumBulletEnv-v0
-            for the original networks. 
+            for the original networks.
+                ---------------------
+                See the domain specification code for the inverted double
+                pendulum (./domainsAndConditions/domainAndConditionsForInvertedDoublePendulum.py)
+                to see further points to where the training code and environment specification
+                for the network can be found. 
 
 In addition to the above files which were discussed in the paper, two additional
 models for testing and sanity-checking purposes can be found in:
