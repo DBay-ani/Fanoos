@@ -126,6 +126,9 @@ def recordOperatorComputationFinished(operatorToRecord, indexIntoQA):
 from statesAndOperatorsAndSelection.automaticOperatorSelection.operationSelectionManagers import \
     Manual_SelectorManager, OriginalMethod_SelectorManager;
 
+
+from CEGARLikeAnalysis.refinementPathManager import RefPathManager;
+
 def respondToUserQuestion(domainInformation, loadedLearnedModel, parsedUserQuestion, historyFromOtherTrials):
     requires(isinstance(domainInformation, BaseClassDomainInformation)); 
     requires(isinstance(parsedUserQuestion, QuestionBaseClass ));
@@ -141,6 +144,10 @@ def respondToUserQuestion(domainInformation, loadedLearnedModel, parsedUserQuest
     startState = FirstState_DescriptionState();
 
     startOperator = Operator_StartOperator();
+
+    # Below ensures no refinement results stored from
+    # previous questions are accidentally used. 
+    RefPathManager.reset();
 
     indexIntoQA = 0;
     objectForHistory.append( (startState, startOperator) ); 

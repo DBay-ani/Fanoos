@@ -110,6 +110,8 @@ def _helper_getFunctionToCheckWhetherNoPointsInTheBoxStatisfyCondition_convertBo
     return F;
 
 
+from utils.quickResetZ3Solver import quickResetZ3Solver;
+
 def checkIfPredicateRepetativeForThisBox(thisBox, restOfConditions, z3Solver, listMappingAxisIndexToVariableInQuestion):
 
     # TODO: split the two sections below into two functions...
@@ -138,7 +140,8 @@ def checkIfPredicateRepetativeForThisBox(thisBox, restOfConditions, z3Solver, li
     # that the disjunction of the conditions to prove the statement...
     #===========================================================================
 
-    z3Solver.reset(); # this might be the expensive.... TODO: check
+    quickResetZ3Solver(z3Solver); 
+
     # disjunctive normal form - each element in the list is a clause which we or-together....
     formulaToCheck = \
         (\
@@ -152,7 +155,7 @@ def checkIfPredicateRepetativeForThisBox(thisBox, restOfConditions, z3Solver, li
         );
     z3Solver.add(formulaToCheck);
     verdict = (z3Solver.check() == z3.z3.sat);
-    z3Solver.reset();
+    quickResetZ3Solver(z3Solver);
     return verdict;
     #^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^
 

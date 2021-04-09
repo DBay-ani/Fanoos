@@ -42,7 +42,7 @@ import uuid;
 
 from databaseInterface.databaseValueTracker import ObjDatabaseValueTracker;
 from databaseInterface.databaseIOManager import objDatabaseInterface, executeDatabaseCommandList;
-
+from boxesAndBoxOperations.getBox import isProperBox;
 
 from domainsAndConditions.baseClassConditionsToSpecifyPredictsWith import \
     MetaCondition_Conjunction, \
@@ -51,6 +51,12 @@ from domainsAndConditions.baseClassConditionsToSpecifyPredictsWith import \
 from boxesAndBoxOperations.getBox import boxSize, getDimensionOfBox;
 
 from utils.distributionStatics import distributionStatics;
+
+from boxesAndBoxOperations.readAndWriteBoxes import writeBox, readBoxes;
+
+import struct;
+
+import re;
 
 class DescriptionState():
 
@@ -83,10 +89,12 @@ class DescriptionState():
     def __init__(self):
         self.internalDictionary = dict();
         self.internalDictionary["description"] = list();
-        self.internalDictionary["boxes"]= list();
         self.internalDictionary["mostRecentOperatorParameters"] = dict();
         self.internalDictionary["mostRecentOperatorParameters"]["removedPredicates"] = set();
-        self.internalDictionary["rawInputDomainBoxes"] = dict(); # I dislike storing this due to memory consumption....
+        def dummyInititialContinuation():
+            return [];
+        self.internalDictionary["continuationToBoxesToDescribe"]= dummyInititialContinuation;
+        self.internalDictionary["continuationForRawInputDomainBoxes"] = dummyInititialContinuation;
         self.setID();
 
 
@@ -102,22 +110,49 @@ class DescriptionState():
     def getDescription(self):
         return self.internalDictionary["description"];
 
-    def setRawInputDomainBoxes(self, theseBoxes):
-        requires(isinstance(theseBoxes, list));
-        self.internalDictionary["rawInputDomainBoxes"] = theseBoxes;
+    # TODO: consider making the below function just a utility, as oppossed to
+    # a static member of this class...
+    @staticmethod 
+    def generationContinuationToListOfBoxesUsingOutsideMemoryStorage(tag,  listOfBoxesToFormContinuationFor):
+        requires(isinstance(listOfBoxesToFormContinuationFor, list));
+        requires(all([isProperBox(x) for x in listOfBoxesToFormContinuationFor]));
+        requires( re.match("^[a-zA-Z0-9_]*$", tag) is not None );
+        pathToSaveBoxes = "./tmp/" + tag + "_" + str(uuid.uuid4());
+        fh = open(pathToSaveBoxes, "wb");
+        if(len(listOfBoxesToFormContinuationFor) > 0):
+            fh.write(struct.pack("i", getDimensionOfBox(listOfBoxesToFormContinuationFor[0])));
+        metaData = [0, 0];
+        for thisBox in listOfBoxesToFormContinuationFor:
+            writeBox(fh, thisBox, metaData);
+        fh.close();
+        def continuationForReadingBackBoxes():
+            fh = open(pathToSaveBoxes, "rb");
+            # Below, the results returned by readBoxes are a list of form
+            # (box, metaData). By returning x[0], we just keep the boxes...
+            boxesToReturn =  [ x[0] for x in readBoxes(fh) ];
+            fh.close();
+            return boxesToReturn;
+        return continuationForReadingBackBoxes;
+
+
+    def setContinuationForRawInputDomainBoxes(self, thisContinuationToFormBoxes):
+        requires("function" in str(type(thisContinuationToFormBoxes))); #not the most preferred way
+            # to write this check, but is reasonably robust and easy to read
+        self.internalDictionary["continuationForRawInputDomainBoxes"] = thisContinuationToFormBoxes;
         return;
 
-    def getRawInputDomainBoxes(self):
-        return self.internalDictionary["rawInputDomainBoxes"];
+    def getContinuationForRawInputDomainBoxes(self):
+        return self.internalDictionary["continuationForRawInputDomainBoxes"];
 
     
-    def setBoxes(self, theseBoxes):
-        requires(isinstance(theseBoxes, list));
-        self.internalDictionary["boxes"] = theseBoxes;
+    def setContinuationToBoxesToDescribe(self, thisContinuationToBoxesToDescribe):
+        requires("function" in str(type(thisContinuationToBoxesToDescribe))); #not the most preferred way
+            # to write this check, but is reasonably robust and easy to read
+        self.internalDictionary["continuationToBoxesToDescribe"] = thisContinuationToBoxesToDescribe;
         return;
 
-    def getBoxes(self):
-        return self.internalDictionary["boxes"];
+    def getContinuationToBoxesToDescribe(self):
+        return self.internalDictionary["continuationToBoxesToDescribe"];
 
 
     def getCopyOfParameters(self):
@@ -172,7 +207,9 @@ class DescriptionState():
         #=============================================================
         labelForDomainSpecificStats = labelBeginning + ":d";
         variablesBoxesProducedMayBeOver = [str(x) for x in variablesBoxesProducedMayBeOver]; 
-        resultValue = self._getAnalysisResult(self.internalDictionary["boxes"]);
+        boxesToDescribe= self.getContinuationToBoxesToDescribe()(); # Two (): one to call the get function,
+            # the other to finish computing the continuation...
+        resultValue = self._getAnalysisResult(boxesToDescribe);
         for thisKey in resultValue:
             self.convertBoxAndLabelToList(\
                 labelForDomainSpecificStats + ":" + thisKey, \
@@ -186,8 +223,10 @@ class DescriptionState():
             ( (lambda A : np.sum(np.diff(A, axis=1)) ), "bsumSideLengths"), \
         ];
 
+        boxesOfInterestToDescribeFromInputDomainRaw = self.getContinuationForRawInputDomainBoxes()(); # Notice the two
+            # paranthesis - one to call the get function, one to compute the continuation...
         for thisFunctAndLabel in generalSummaryFunctionsAndLabelsForThem:
-            theseValues = [ thisFunctAndLabel[0](x) for x in self.getBoxes()];
+            theseValues = [ thisFunctAndLabel[0](x) for x in boxesOfInterestToDescribeFromInputDomainRaw];
             resultValue = self._getAnalysisResult(theseValues);
             specificLabel = labelForDomainSpecificStats + ":" + thisFunctAndLabel[1];
             for thisKey in resultValue:
@@ -204,7 +243,7 @@ class DescriptionState():
         # general statistics - i.e., those that may be easily useable across domains...
         #=============================================================
         labelForGeneralStats =  labelBeginning + ":g";
-        numberOfBoxes = len(self.internalDictionary["boxes"]);
+        numberOfBoxes = len(boxesToDescribe);
         commandToExecute = \
             "INSERT INTO QAStateValues ( QAStateUUID , fieldName, fieldValue) VALUES ('" + \
              self.getID() + "', '" + (labelForGeneralStats + ":numberOfDataPoints") + "', ? );";
@@ -229,7 +268,8 @@ class DescriptionState():
         ];
         
         for thisFunctAndLabel in generalSummaryFunctionsAndLabelsForThem:
-            theseValues = [ thisFunctAndLabel[0](x) for x in self.getRawInputDomainBoxes()];
+            theseValues = [ thisFunctAndLabel[0](x) for x in self.getContinuationForRawInputDomainBoxes()()]; # notice two () : one
+                # to envoke the get function, one to compute the continuation...
             resultValue = self._getAnalysisResult(theseValues);
             specificLabel = labelForGeneralStats + ":" + thisFunctAndLabel[1];
             for thisKey in resultValue:
@@ -329,6 +369,7 @@ class FirstState_DescriptionState(DescriptionState):
         parameterDict["numberOfSamplesToTry"]=int(config.defaultValues.numberOfSamplesToTry);
         parameterDict["produceGreaterAbstraction"]=False;
         parameterDict["exponentialComponent"]= 0.0; 
+        parameterDict["completelyRedoRefinement"]= config.defaultValues.completelyRedoRefinementEachCallToCEGAR;
         return;
 
 

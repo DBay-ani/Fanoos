@@ -49,4 +49,4 @@ numberOfStatisticalSamplesToTakeIn_getFunctionToCheckWhetherNoPointsInTheBoxStat
 numberOfStatisticalSamplesToTakeIn_numberOfStatisticalSamplesToTakeIn_getFunctionToCheckWhetherNoPointsInTheBoxStatisfyCondition = 10;
 responceDelayTimeForUnexpectedInputes=3;# this value is in seconds
 databaseWriteTimeoutLimit= 100; # this is in seconds.
-
+completelyRedoRefinementEachCallToCEGAR=False;

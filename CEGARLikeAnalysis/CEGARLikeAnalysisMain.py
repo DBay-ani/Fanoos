@@ -69,6 +69,7 @@ import time;
 timingInfoForLocation_2e048534_BoxTest = [];
 
 from CEGARLikeAnalysis import labelsForBoxes;
+from CEGARLikeAnalysis.refinementPathManager import RefPathManager ;
 
 def helper_formDummyBoxes(thisInputBox, functionToDetermineWhenToGiveUpOnBox, CEGARFileWrittingManagerInstance, scalingForSplitting, depth):
     if(functionToDetermineWhenToGiveUpOnBox(thisInputBox)):
@@ -81,21 +82,56 @@ def helper_formDummyBoxes(thisInputBox, functionToDetermineWhenToGiveUpOnBox, CE
     return;
 
 def analysis_divingIntoBox(thisInputBox, thisInstanceOfModelBoxProgatorManager, functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, \
-        CEGARFileWrittingManagerInstance, scalingForSplitting, depth, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None):
+        CEGARFileWrittingManagerInstance, scalingForSplitting, depth, path, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None):
     thisOutputBox = thisInstanceOfModelBoxProgatorManager.pushBoxThrough(thisInputBox);
+
+    sideInformationForRefinementProcess = None;
+    lazyEval_checkWhetherNoPoints = None;
+
+
+    RefPathManager.old.goToNextDepthDecreaseIfTooDeep(depth);
     startTime = time.process_time();  #location2e048534-c79b-4177-a79d-cc0ef71384d4_boxTest
-    boxTest = functionToStatisfy(thisInputBox, thisOutputBox);
+    if(RefPathManager.old.headIsApplicable(depth)):
+        tempPath = RefPathManager.old.getCopyOfCurrentPath();
+        assert(tempPath == path); # a good check to ensure things remained aligned.
+        (dTemp, rf1, rf2, sideRefinementInfoTemp) = RefPathManager.old.head();
+        RefPathManager.old.advance();
+        assert(dTemp == depth);
+        sideInformationForRefinementProcess = (sideRefinementInfoTemp if (sideRefinementInfoTemp > 0) else None);
+        boxTest = rf1;
+        lazyEval_checkWhetherNoPoints = (lambda *ignoreVal : rf2);
+        assert( (sideInformationForRefinementProcess is None) or (not boxTest)); # basically, 
+            # we wouldn't be refining (i.e., sideInformationForRefinementProcess would NOT
+            # be None if we were refining) if boxTest was True. See the conditional
+            # branches below.
+    else:
+        boxTest = functionToStatisfy(thisInputBox, thisOutputBox);
+        lazyEval_checkWhetherNoPoints = (lambda *ignoreVal : 
+             (functionToCheckWhetherNoPointsInTheBoxStatisfyCondition is not None) and \
+              (functionToCheckWhetherNoPointsInTheBoxStatisfyCondition(thisInputBox, thisOutputBox)) \
+            );
     endTime   = time.process_time();
     timingInfoForLocation_2e048534_BoxTest.append(endTime - startTime);
+
     if(boxTest):
+        result_checkWhetherNoPoints = None
+        RefPathManager.new.append(depth, boxTest, result_checkWhetherNoPoints, 0 );
+
         CEGARFileWrittingManagerInstance.writeBox(thisInputBox, [depth, labelsForBoxes.TRUEEVERYWHERE]);
         return True; # True for success...
     elif(functionToDetermineWhenToGiveUpOnBox(thisInputBox)):
+        result_checkWhetherNoPoints = None
+        RefPathManager.new.append(depth, boxTest, result_checkWhetherNoPoints, 0 );
+
+
         CEGARFileWrittingManagerInstance.writeBox(thisInputBox, \
                     [depth, labelsForBoxes.LOWESTLEVEL_FALSESOMEWHEREANDEXHAUSTEDLOOKING]);
         return False; #False for failure.
-    elif( (functionToCheckWhetherNoPointsInTheBoxStatisfyCondition is not None) and \
-          (functionToCheckWhetherNoPointsInTheBoxStatisfyCondition(thisInputBox, thisOutputBox)) ):
+    elif( lazyEval_checkWhetherNoPoints() ):
+        result_checkWhetherNoPoints = True;
+        RefPathManager.new.append(depth, boxTest, result_checkWhetherNoPoints, 0 );
+
+
         CEGARFileWrittingManagerInstance.writeBox(thisInputBox, \
             [depth, labelsForBoxes.FALSEEVERYWHERE]);
         helper_formDummyBoxes(thisInputBox, functionToDetermineWhenToGiveUpOnBox, \
@@ -103,11 +139,20 @@ def analysis_divingIntoBox(thisInputBox, thisInstanceOfModelBoxProgatorManager, 
                 # because the further splitting occurs in helper_formDummyBoxes.
         return False; #False for failure. # goes up a layer to accumulate a larger box where all members of the box failed
     else:
-        refimentElements = splitBox(thisInputBox, "randomNumberOfUniformSplits", scalingFactors=scalingForSplitting);
+        result_checkWhetherNoPoints = (None if (functionToCheckWhetherNoPointsInTheBoxStatisfyCondition is None) else False);
+
+        # recurse
+        refimentElements = splitBox(thisInputBox, "randomNumberOfUniformSplits", scalingFactors=scalingForSplitting, \
+            sideInformation=sideInformationForRefinementProcess);
+        assert( (sideInformationForRefinementProcess is None) or \
+            (len(refimentElements) == sideInformationForRefinementProcess));
+        RefPathManager.new.append(depth, boxTest, result_checkWhetherNoPoints, \
+            len(refimentElements) \
+        );
         resultOfFurtherRefining = [\
             analysis_divingIntoBox(x, thisInstanceOfModelBoxProgatorManager, functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, \
-                CEGARFileWrittingManagerInstance, scalingForSplitting, depth+1)\
-            for x in refimentElements];
+                CEGARFileWrittingManagerInstance, scalingForSplitting, depth+1, path + [index],functionToCheckWhetherNoPointsInTheBoxStatisfyCondition)\
+            for index, x in enumerate(refimentElements)];
         if(not any(resultOfFurtherRefining)):
             return False; # goes up a layer to accumulate a larger box where all members of the box failed
         else:
@@ -128,9 +173,11 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAIAQC/RPJH+HUB5ZcSOv61j5AKWsnP6pwitgIsRHKQ5Pxl
 """
 from databaseInterface.databaseValueTracker import ObjDatabaseValueTracker;
 
+import config;
 
 def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, \
-        limitSplittingToAxisWithIndicesInThisList=None, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None):
+        limitSplittingToAxisWithIndicesInThisList=None, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None,\
+        completelyRedoRefinement=config.defaultValues.completelyRedoRefinementEachCallToCEGAR):
     timingInfoForLocation_2e048534_BoxTest = [];
     requires(isinstance(limitSplittingToAxisWithIndicesInThisList, list) or (limitSplittingToAxisWithIndicesInThisList == None));
     requires( (limitSplittingToAxisWithIndicesInThisList == None) or \
@@ -138,6 +185,8 @@ def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStati
     requires(  (limitSplittingToAxisWithIndicesInThisList == None) or \
         (len(set(limitSplittingToAxisWithIndicesInThisList)) == len(limitSplittingToAxisWithIndicesInThisList))  );
 
+    if(completelyRedoRefinement):
+        RefPathManager.reset();
 
     CEGARFileWrittingManagerInstance = CEGARFileWrittingManager(universeBox);
     CEGARFileWrittingManagerInstance.writeMetadata(\
@@ -162,14 +211,16 @@ def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStati
         scalingForSplitting = tempBox;
 
 
-    for thisBox in theseInputAbstractions:
+    for index, thisBox in enumerate(theseInputAbstractions):
         anySuccess = analysis_divingIntoBox(thisBox, thisInstanceOfModelBoxProgatorManager, \
-            functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, CEGARFileWrittingManagerInstance, scalingForSplitting, 0, \
+            functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, CEGARFileWrittingManagerInstance, scalingForSplitting,\
+            0, [index], \
             functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=functionToCheckWhetherNoPointsInTheBoxStatisfyCondition);
         if(not anySuccess):
             CEGARFileWrittingManagerInstance.writeBox(thisBox, [0, labelsForBoxes.HIGHESTLEVELBOXUNIONBOX_FALSESOMEWHEREANDEXHAUSTEDLOOKING]);
 
     CEGARFileWrittingManagerInstance.closeFilesToSaveResultsIn();
+    RefPathManager.replaceOld();
     return CEGARFileWrittingManagerInstance;
 
 

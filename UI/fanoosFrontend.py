@@ -236,6 +236,8 @@ class FanoosFrontend(cmd.Cmd):
         integerDomainSelection = userResponce[1];
 
         s = z3.Solver();
+        s.push(); # Needed to set up backtracking for quick clearing
+            # of axioms later. See <root of git repo>/utils/quickResetZ3Solver.py
         self.domainInformation = availableDomains[integerDomainSelection](s);
 
         print("Enter path to the neural-net weights to use. Spaces in the path name will be ignored.", flush=True);

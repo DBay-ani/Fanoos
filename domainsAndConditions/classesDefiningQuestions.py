@@ -30,6 +30,7 @@
 # 
 # 
 
+from utils.quickResetZ3Solver import quickResetZ3Solver;
 
 import pickle;
 import numpy as np;
@@ -177,7 +178,8 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
  
 
     def getRelaventInputBoxes(self, thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-        splitOnlyOnRelaventVariables=False, precisionForMerging=3):
+        splitOnlyOnRelaventVariables=False, precisionForMerging=3, \
+        completelyRedoRefinement=config.defaultValues.completelyRedoRefinementEachCallToCEGAR):
         requires(isinstance(epsilonForBoxSize, float));
         requires(epsilonForBoxSize > 0);
         requires(isinstance(splitOnlyOnRelaventVariables, bool));
@@ -210,18 +212,21 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
         thisCEGARFileWrittingManagerInstance = analysis(self.domainInfo.getInputSpaceUniverseBox(), thisInstanceOfModelBoxProgatorManager, \
             functionToStatisfy, functionToDetermineWhenToGiveUpOnBox_axisSmallAfterScalingByUniverseSize, \
             limitSplittingToAxisWithIndicesInThisList=axisToSplitOn, \
-            functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=functionToCheckWhetherNoPointsInTheBoxStatisfyCondition);
+            functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=functionToCheckWhetherNoPointsInTheBoxStatisfyCondition,\
+            completelyRedoRefinement=completelyRedoRefinement);
     
         fileNameHoldingDesiredBoxes = \
             thisCEGARFileWrittingManagerInstance.dictMappingFileTypeToFileHandleToUse["boxes"].name;
     
-        tempFH = open(fileNameHoldingDesiredBoxes, "rb");
-        boxesToReturn = [x[0] for x in readBoxes(tempFH) if ((x[1][1] &  labelsForBoxes.LOWESTLEVEL_FALSESOMEWHEREANDEXHAUSTEDLOOKING) > 0)];  #<---------------- NOTICE THE NOT (i.e., the check for falsity)....
-        tempFH.close();
-         
-        ensures(isinstance(boxesToReturn, list));
-        ensures(all([isProperBox(x) for x in boxesToReturn]));
-        return boxesToReturn;
+        def continuationToGetBoxesToReturn():
+            tempFH = open(fileNameHoldingDesiredBoxes, "rb");
+            boxesToReturn = [x[0] for x in readBoxes(tempFH) if ((x[1][1] &  labelsForBoxes.LOWESTLEVEL_FALSESOMEWHEREANDEXHAUSTEDLOOKING) > 0)];  #<---------------- NOTICE THE NOT (i.e., the check for falsity)....
+            tempFH.close();
+            ensures(isinstance(boxesToReturn, list));
+            ensures(all([isProperBox(x) for x in boxesToReturn]));
+            return boxesToReturn;
+
+        return continuationToGetBoxesToReturn;
 
 
 
@@ -261,17 +266,22 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
 
 
     def getBoxesToDescribe(self, thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-            splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=None):
+            splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=None, \
+            completelyRedoRefinement=config.defaultValues.completelyRedoRefinementEachCallToCEGAR):
         requires(isinstance(limitOnNumberOfTimesToMerge, int) or (type(limitOnNumberOfTimesToMerge) == type(None)));
         requires((limitOnNumberOfTimesToMerge == None) or (limitOnNumberOfTimesToMerge >= 0));
         requires(isinstance(splitOnlyOnRelaventVariables, bool));
     
-        inputDomainBoxes = self.getRelaventInputBoxes(thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-                               splitOnlyOnRelaventVariables=splitOnlyOnRelaventVariables, precisionForMerging=precisionForMerging);
+        continuationFor_inputDomainBoxes = self.getRelaventInputBoxes(thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
+                               splitOnlyOnRelaventVariables=splitOnlyOnRelaventVariables, precisionForMerging=precisionForMerging,\
+                               completelyRedoRefinement=completelyRedoRefinement);
+        assert("function" in str(type(continuationFor_inputDomainBoxes)) );
+        inputDomainBoxes = continuationFor_inputDomainBoxes();
+        assert(isinstance(inputDomainBoxes, list));
     
         listMappingBoxIndexToVariable = self.variablesBoxesProducedMayBeOver;
         if(len(inputDomainBoxes) == 0):
-            return ([], listMappingBoxIndexToVariable, []);
+            return ([], listMappingBoxIndexToVariable, continuationFor_inputDomainBoxes);
         assert(len(inputDomainBoxes) > 0);
     
         boxesToDescribePriorToMerging = self.helper_getBoxesToDescribe_get_boxesToDescribePriorToMerging(\
@@ -309,7 +319,7 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
         ensures(all([ (getDimensionOfBox(thisBox) == \
                 len(listMappingBoxIndexToVariable) ) \
                 for thisBox in boxesToReturn]));
-        return (boxesToReturn, listMappingBoxIndexToVariable, inputDomainBoxes);
+        return (boxesToReturn, listMappingBoxIndexToVariable, continuationFor_inputDomainBoxes);
 
 
 
@@ -427,7 +437,8 @@ class Question_FormalUniversalQuant(Question_WayConditionIsChecked):
             #^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^
 
             z3Solver = self.conditionsToBeConsistentWith[0].z3Solver;
-            z3Solver.reset(); # this might be the expensive.... I have to check
+            quickResetZ3Solver(z3Solver);
+
             # disjunctive normal form - each element in the list is a clause which we or-together....
             formulaToCheck = \
                 (\
@@ -440,7 +451,7 @@ class Question_FormalUniversalQuant(Question_WayConditionIsChecked):
                 );
             z3Solver.add(formulaToCheck);
             verdict = (z3Solver.check() == z3.z3.sat);
-            z3Solver.reset(); # this might be the expensive.... I have to check
+            quickResetZ3Solver(z3Solver);
 
             return verdict;
 

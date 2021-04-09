@@ -84,7 +84,9 @@ def readBoxFromFile(fhToRead, dimensionOfBox, numberOfBytesThatAFloatHasOnThisSy
 
     boxToReturn = np.zeros((dimensionOfBox, 2));
 
-    valueToUnpack = [fhToRead.read(1), fhToRead.read(1)];
+    valueToUnpack = [fhToRead.read(1), fhToRead.read(1)]; # reading this way might
+        # defeat many of the purposes of trying to implement a read buffer on top 
+        # of the output of this function...
     if(len(valueToUnpack[0]) == 0):
         return None;
     metaData = [struct.unpack( "B", valueToUnpack[x])[0] for x in [0,1]]; # somewhat hacky way to write this.....

@@ -31,6 +31,8 @@
 # 
 
 
+from utils.quickResetZ3Solver import quickResetZ3Solver;
+
 import numpy as np;
 import sys;
 from utils.contracts import *;
@@ -94,7 +96,7 @@ class CharacterizationConditionsBaseClass():
         precondition = z3.And([\
             float(vectorToEvaluateAgainst[thisIndex]) == self.listMappingPositionToVariableName[thisIndex] \
             for thisIndex in range(0, self.expectedNumberOfDimensions) ]);
-        self.z3Solver.reset();
+        quickResetZ3Solver(self.z3Solver);
         formulaToCheck = z3.And(precondition, self.z3FormattedCondition); # "And" as oppossed to "Implies" since
             # z3 is checking for satisfiability - so "Implies" would be trivial to satisfy by failing the hypothesis....
         self.z3Solver.add(formulaToCheck);
@@ -124,7 +126,7 @@ class CharacterizationConditionsBaseClass():
         requires(isProperBox(thisBox));
         thisBox = self.handleCaseOfJointBox(thisBox); # hacky to put this before a requires... TODO: fix this....
         requires(getDimensionOfBox(thisBox) == self.expectedNumberOfDimensions);
-        self.z3Solver.reset(); # this might be the expensive.... I have to check
+        quickResetZ3Solver(self.z3Solver);
         formulaToCheck = \
             z3.ForAll(self.listMappingPositionToVariableName, \
                 z3.Implies(\
@@ -140,7 +142,7 @@ class CharacterizationConditionsBaseClass():
         requires(isProperBox(thisBox));
         thisBox = self.handleCaseOfJointBox(thisBox); # hacky to put this before a requires... TODO: fix this....
         requires(getDimensionOfBox(thisBox) == self.expectedNumberOfDimensions);
-        self.z3Solver.reset(); # this might be the expensive.... I have to check
+        quickResetZ3Solver(self.z3Solver);
         formulaToCheck = \
             z3.Exists(self.listMappingPositionToVariableName, \
                 z3.And(\
@@ -256,7 +258,7 @@ class MetaCondition_Conjunction(CharacterizationConditionsBaseClass):
 
     def existsMemberOfBoxSatifyingCondition(self, thisBox):
         requires(isProperBox(thisBox));
-        self.z3Solver.reset();
+        quickResetZ3Solver(self.z3Solver);
         conditionToCheck = \
             z3.And([\
                 z3.And(\

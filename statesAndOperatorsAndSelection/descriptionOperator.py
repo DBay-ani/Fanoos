@@ -187,8 +187,8 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAIAQC/RPJH+HUB5ZcSOv61j5AKWsnP6pwitgIsRHKQ5Pxl
                   "until the next time a new description is generated (such as by requesting a " + \
                   "description that is more abstract as oppossed to one that is less abstract).", flush =True);
             newState.setDescription(self.currentState.getDescription());
-            newState.setRawInputDomainBoxes(self.currentState.getRawInputDomainBoxes());
-            newState.setBoxes(self.currentState.getBoxes());
+            newState.setContinuationForRawInputDomainBoxes(self.currentState.getContinuationForRawInputDomainBoxes());
+            newState.setContinuationToBoxesToDescribe(self.currentState.getContinuationToBoxesToDescribe());
             newState.sideInformationDict = self.currentState.sideInformationDict;
             newState.internalDictionary["mostRecentOperatorParameters"] = self.currentState.getCopyOfParameters();
             newState.internalDictionary["mostRecentOperatorParameters"]["removedPredicates"].difference_update(\
@@ -519,18 +519,24 @@ class Operator_FreshGenerateAllBoxes(DescriptionOperator):
         numberOfSamplesToTry = parameters["numberOfSamplesToTry"];
         produceGreaterAbstraction = parameters["produceGreaterAbstraction"];
         exponentialComponent = parameters["exponentialComponent"];
+        completelyRedoRefinement = parameters["completelyRedoRefinement"];
         fileNameOfNetworkWeightsAndBiases = loadedLearnedModel;
-  
+ 
         startTime =  time.process_time(); #location79441a4e-30de-4e64-9ac7-27b2b4b7b503_CEGARLikeAnalysis
-        (listOfBoxesToDescribe, listMappingAxisIndexToVariableInQuestion, rawInputDomainBoxes) = \
+        (listOfBoxesToDescribe, listMappingAxisIndexToVariableInQuestion, continuationFor_rawInputDomainBoxes) = \
             parsedUserQuestion.getBoxesToDescribe(loadedLearnedModel, floatValueForBoxDivisionCutoff, \
-                splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=limitOnNumberOfTimesToMerge);
+                splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=limitOnNumberOfTimesToMerge, \
+                completelyRedoRefinement=completelyRedoRefinement);
+        assert("function" in str(type(continuationFor_rawInputDomainBoxes)) );
         endTime =  time.process_time(); 
         self.recordTimeStats(timingInfoForLocation_2e048534_BoxTest, "location2e048534-c79b-4177-a79d-cc0ef71384d4_boxTest");
         self.recordTimeStats([endTime - startTime], "location79441a4e-30de-4e64-9ac7-27b2b4b7b503_CEGARLikeAnalysis");
 
-        newState.setBoxes(listOfBoxesToDescribe);
-        newState.setRawInputDomainBoxes(rawInputDomainBoxes);
+        # Below, "BTD" stands for "Boxes To Describe"
+        newState.setContinuationToBoxesToDescribe(\
+            newState.generationContinuationToListOfBoxesUsingOutsideMemoryStorage("BTD_", listOfBoxesToDescribe)\
+        );
+        newState.setContinuationForRawInputDomainBoxes(continuationFor_rawInputDomainBoxes);
 
         conditionsList = domainInformation.getBaseConditions().copy();
         # filtering for those conditions that only discuss the relavent variables...
