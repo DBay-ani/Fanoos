@@ -8,6 +8,13 @@ See DEPENDENCIES.txt for a list of software dependencies this code has.
 Configuration default values, which we highly encourage every user to visit,
 can be found in config/defaultValues.py .
 
+We also suggest that users take advantage of the efficiency improvements
+available in the development branch (note that this README is for the main 
+branch). While code in the development branch has undergone a variety of tests,
+we hold-off from merging it in here in order to keep the main branch's core
+relatively stable, as well as to more extensively scrutinize the additions prior
+via further hardening tests.
+
 Note, day23 month3 year2021: The code to run the experiments is found in this
 repository. We will push the collection and summarization scripts at a later point.
 
