@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 from utils.contracts import *;
 from boxesAndBoxOperations.getBox import isProperBox, getBox, getDimensionOfBox, getJointBox, getContainingBox, getRandomBox;
 import numpy as np;
@@ -51,7 +55,14 @@ def splitBox(thisBox, stringSpecifyingStyleOfSplit, scalingFactors=None):
     requires(isinstance(stringSpecifyingStyleOfSplit, str));
     requires((isinstance(scalingFactors, type(None))) or (isinstance(scalingFactors, np.ndarray)));
     requires((isinstance(scalingFactors, type(None))) or (scalingFactors.shape==tuple([getDimensionOfBox(thisBox)])));
-    
+
+    if(isinstance(scalingFactors, type(None))):
+        raise Exception("While scalingFactors = None is supported in splitBox currently, use of " + \
+            "None as the scalling axis has been disabled elsewhere in the code. Thus, this is a " +\
+            "sign that the caller is in error - which is why this function (splitBox) is raising an " + \
+            "exception to alert the user to something that should not be occuring if the code is in " + \
+            "sync on the latest revisions.");
+
     dictMappingStyleOfSplitToFunction = {\
         "halvingAllAxis" : splitBox_halvingAllAxis ,\
         "halfLongestAxis" : splitBox_halfLongestAxis, \
@@ -77,6 +88,7 @@ def splitBox(thisBox, stringSpecifyingStyleOfSplit, scalingFactors=None):
                     thisBox[np.isnan(scalingFactors)]
     else:
         valueToReturn = rawReturn;
+
 
     # The value valueToReturn is allowed to be None when the splitting
     # procedure values to produce a new box - that is, the point is a 

@@ -30,6 +30,10 @@
 # 
 # 
 
+
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
 from collectingResults.drawBoxes import frontEnd_drawBox;
 
 frontEnd_drawBox("tmp/resultsPresentedInPaper_CLA_boxes_0ab2cbdb-5a9e-4359-8b96-f935017311fc.bin")

@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 import numpy as np
 from utils.contracts import *;
 
@@ -129,13 +133,15 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAIAQC/RPJH+HUB5ZcSOv61j5AKWsnP6pwitgIsRHKQ5Pxl
 from databaseInterface.databaseValueTracker import ObjDatabaseValueTracker;
 
 
+import pickle;
+
 def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, \
         limitSplittingToAxisWithIndicesInThisList=None, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None):
     timingInfoForLocation_2e048534_BoxTest = [];
-    requires(isinstance(limitSplittingToAxisWithIndicesInThisList, list) or (limitSplittingToAxisWithIndicesInThisList == None));
-    requires( (limitSplittingToAxisWithIndicesInThisList == None) or \
+    requires(isinstance(limitSplittingToAxisWithIndicesInThisList, list));
+    requires( \
         np.all([(x >= 0 and x < getDimensionOfBox(universeBox)) for x in limitSplittingToAxisWithIndicesInThisList]));
-    requires(  (limitSplittingToAxisWithIndicesInThisList == None) or \
+    requires( \
         (len(set(limitSplittingToAxisWithIndicesInThisList)) == len(limitSplittingToAxisWithIndicesInThisList))  );
 
 
@@ -153,14 +159,12 @@ def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStati
     assert(len(theseInputAbstractions) > 0);
 
     scalingForSplitting = universeBox[:, 1] - universeBox[:, 0]; 
+    tempBox = scalingForSplitting.copy(); # TODO: remove this unnecessary copy in the near future.
     # As implemented in the splitBox file, when the scaling factor has a nan in a posotion, 
     # the axis corresponding to that index is ignored.
-    if(limitSplittingToAxisWithIndicesInThisList != None):
-        tempBox = scalingForSplitting.copy();
-        tempBox[:] = np.nan;
-        tempBox[limitSplittingToAxisWithIndicesInThisList] = scalingForSplitting[limitSplittingToAxisWithIndicesInThisList];
-        scalingForSplitting = tempBox;
-
+    tempBox[:] = np.nan;
+    tempBox[limitSplittingToAxisWithIndicesInThisList] = scalingForSplitting[limitSplittingToAxisWithIndicesInThisList];
+    scalingForSplitting = tempBox;
 
     for thisBox in theseInputAbstractions:
         anySuccess = analysis_divingIntoBox(thisBox, thisInstanceOfModelBoxProgatorManager, \

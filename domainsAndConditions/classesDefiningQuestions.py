@@ -30,7 +30,9 @@
 # 
 # 
 
-
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
 import pickle;
 import numpy as np;
 import sys;
@@ -71,6 +73,7 @@ from databaseInterface.databaseValueTracker import ObjDatabaseValueTracker;
 from databaseInterface.databaseIOManager import objDatabaseInterface, executeDatabaseCommandList;
 from utils.distributionStatics import distributionStatics;
 
+from statesAndOperatorsAndSelection.descriptionState import DescriptionState ;
 
 class QuestionBaseClass():
 
@@ -176,17 +179,21 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
         return
  
 
-    def getRelaventInputBoxes(self, thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-        splitOnlyOnRelaventVariables=False, precisionForMerging=3):
-        requires(isinstance(epsilonForBoxSize, float));
-        requires(epsilonForBoxSize > 0);
-        requires(isinstance(splitOnlyOnRelaventVariables, bool));
+    def getRelaventInputBoxes(self, thisInstanceOfModelBoxProgatorManager, thisState):
+        requires(isinstance(thisState, DescriptionState)); 
 
         functionToStatisfy = self.helper_getRelaventInputBoxes_get_functionToStatisfy();
 
         functionToCheckWhetherNoPointsInTheBoxStatisfyCondition = self.getFunctionToCheckWhetherNoPointsInTheBoxStatisfyCondition();
-    
-        axisToSplitOn= None;
+
+        epsilonForBoxSize = thisState.readParameter("floatValueForBoxDivisionCutoff");
+        splitOnlyOnRelaventVariables = thisState.readParameter("splitOnlyOnRelaventVariables");
+        assert(isinstance(epsilonForBoxSize, float));
+        assert(epsilonForBoxSize > 0);
+        assert(isinstance(splitOnlyOnRelaventVariables, bool));
+        
+
+        axisToSplitOn= list( range(0, len(self.variablesConditionMayInclude)) );
         if(splitOnlyOnRelaventVariables):
             setOfRelaventVariables = set();
             for thisCondition in self.conditionsToBeConsistentWith:
@@ -197,15 +204,11 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
     
         axisScaling = self.domainInfo.getInputSpaceUniverseBox()[:, 1] - self.domainInfo.getInputSpaceUniverseBox()[:, 0];
         assert(all(axisScaling >= 0.0));
-        indicesWhereAxisNotFlat , ignore = np.where(axisScaling[axisToSplitOn] > 0);
+        indicesWhereAxisNotFlat = np.where(axisScaling[axisToSplitOn] > 0)[-1];
         assert(np.all(axisScaling[axisToSplitOn][indicesWhereAxisNotFlat] > 0));
         def functionToDetermineWhenToGiveUpOnBox_axisSmallAfterScalingByUniverseSize(thisBox):
-            if( axisToSplitOn == None):
-                axisToSplitOnTemp= np.array(range(0, thisBox.shape[0]));
-            else:
-                axisToSplitOnTemp= axisToSplitOn;
-            return np.max( (thisBox[axisToSplitOnTemp,:][indicesWhereAxisNotFlat,1] - thisBox[axisToSplitOnTemp,:][indicesWhereAxisNotFlat,0]) /\
-                axisScaling[axisToSplitOnTemp][indicesWhereAxisNotFlat]) <= epsilonForBoxSize;
+            return np.max( (thisBox[axisToSplitOn,:][indicesWhereAxisNotFlat,1] - thisBox[axisToSplitOn,:][indicesWhereAxisNotFlat,0]) /\
+                axisScaling[axisToSplitOn][indicesWhereAxisNotFlat]) <= epsilonForBoxSize;
 
         thisCEGARFileWrittingManagerInstance = analysis(self.domainInfo.getInputSpaceUniverseBox(), thisInstanceOfModelBoxProgatorManager, \
             functionToStatisfy, functionToDetermineWhenToGiveUpOnBox_axisSmallAfterScalingByUniverseSize, \
@@ -260,14 +263,12 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
 
 
 
-    def getBoxesToDescribe(self, thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-            splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=None):
-        requires(isinstance(limitOnNumberOfTimesToMerge, int) or (type(limitOnNumberOfTimesToMerge) == type(None)));
-        requires((limitOnNumberOfTimesToMerge == None) or (limitOnNumberOfTimesToMerge >= 0));
-        requires(isinstance(splitOnlyOnRelaventVariables, bool));
-    
-        inputDomainBoxes = self.getRelaventInputBoxes(thisInstanceOfModelBoxProgatorManager, epsilonForBoxSize, \
-                               splitOnlyOnRelaventVariables=splitOnlyOnRelaventVariables, precisionForMerging=precisionForMerging);
+    def getBoxesToDescribe(self, thisInstanceOfModelBoxProgatorManager, thisState ):
+        requires(isinstance(thisState, DescriptionState));
+   
+        inputDomainBoxes = self.getRelaventInputBoxes(\
+                thisInstanceOfModelBoxProgatorManager, thisState );
+        assert(isinstance(inputDomainBoxes, list));
     
         listMappingBoxIndexToVariable = self.variablesBoxesProducedMayBeOver;
         if(len(inputDomainBoxes) == 0):
@@ -282,12 +283,16 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
                 for thisBox in boxesToDescribePriorToMerging]));
     
         boxesToReturn = None;
+        limitOnNumberOfTimesToMerge = thisState.readParameter("limitOnNumberOfTimesToMerge");
+        assert(isinstance(limitOnNumberOfTimesToMerge, int) or (type(limitOnNumberOfTimesToMerge) == type(None)));
+        assert((limitOnNumberOfTimesToMerge == None) or (limitOnNumberOfTimesToMerge >= 0));
         if((limitOnNumberOfTimesToMerge == None) or (limitOnNumberOfTimesToMerge > 0)):
             middleLabelForBoxStatsRecording = "getBoxesToDescribe:"
             
             self.recordBoxStats(boxesToDescribePriorToMerging, \
                 middleLabelForBoxStatsRecording + "boxesOfInterestPriorToMerging");
 
+            precisionForMerging = thisState.readParameter("precisionForMerging");
             temp = mergeBoxes(boxesToDescribePriorToMerging, precision=precisionForMerging, \
                             maxNumberOfIterations=limitOnNumberOfTimesToMerge);
             boxesToReturn = list(temp["dictMappingIndexToBox"].values());
