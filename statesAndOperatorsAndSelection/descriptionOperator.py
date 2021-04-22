@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 import pickle;
 import numpy as np;
 import sys;
@@ -508,25 +512,9 @@ class Operator_FreshGenerateAllBoxes(DescriptionOperator):
         dictOfNewParameters = self.changeParameter(parsedUserQuestion, domainInformation, loadedLearnedModel, stateAppliedTo, objectForHistory);
         newState.internalDictionary["mostRecentOperatorParameters"] = dictOfNewParameters;
         
-        # we call newState.getCopyOfParameters() below as oppossed to using dictOfNewParameters, generated
-        # above, to try and keep things as sanitary as possible...
-        parameters = newState.getCopyOfParameters();
-        floatValueForBoxDivisionCutoff = parameters["floatValueForBoxDivisionCutoff"];
-        conditionsToBeConsistentWith = parsedUserQuestion.getCopyOfConditionsToBeConsistentWith();
-        limitOnNumberOfTimesToMerge = parameters["limitOnNumberOfTimesToMerge"];
-        splitOnlyOnRelaventVariables = parameters["splitOnlyOnRelaventVariables"];
-        precisionForMerging = parameters["precisionForMerging"];
-        numberOfSamplesToTry = parameters["numberOfSamplesToTry"];
-        produceGreaterAbstraction = parameters["produceGreaterAbstraction"];
-        exponentialComponent = parameters["exponentialComponent"];
-        completelyRedoRefinement = parameters["completelyRedoRefinement"];
-        fileNameOfNetworkWeightsAndBiases = loadedLearnedModel;
- 
         startTime =  time.process_time(); #location79441a4e-30de-4e64-9ac7-27b2b4b7b503_CEGARLikeAnalysis
         (listOfBoxesToDescribe, listMappingAxisIndexToVariableInQuestion, continuationFor_rawInputDomainBoxes) = \
-            parsedUserQuestion.getBoxesToDescribe(loadedLearnedModel, floatValueForBoxDivisionCutoff, \
-                splitOnlyOnRelaventVariables=False, precisionForMerging=3, limitOnNumberOfTimesToMerge=limitOnNumberOfTimesToMerge, \
-                completelyRedoRefinement=completelyRedoRefinement);
+        parsedUserQuestion.getBoxesToDescribe(loadedLearnedModel, newState );
         assert("function" in str(type(continuationFor_rawInputDomainBoxes)) );
         endTime =  time.process_time(); 
         self.recordTimeStats(timingInfoForLocation_2e048534_BoxTest, "location2e048534-c79b-4177-a79d-cc0ef71384d4_boxTest");
@@ -548,11 +536,9 @@ class Operator_FreshGenerateAllBoxes(DescriptionOperator):
         startTime = time.process_time(); # location6e888203-1d65-4f09-9601-fefc60dbb13a_generateDescription
         temp = generateDescription(\
                    listOfBoxesToDescribe, \
-                   numberOfSamplesToTry, \
                    conditionsList, \
                    listMappingAxisIndexToVariableInQuestion, \
-                   produceGreaterAbstraction = produceGreaterAbstraction, \
-                   exponentialComponent = exponentialComponent  \
+                   newState \
                );
         endTime = time.process_time();
         self.recordTimeStats([endTime - startTime], "location6e888203-1d65-4f09-9601-fefc60dbb13a_generateDescription"); 

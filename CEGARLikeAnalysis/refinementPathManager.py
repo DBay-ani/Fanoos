@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 from utils.contracts import *; 
 
 
@@ -64,6 +68,10 @@ class refinementPathInfo():
         self.byteList = bytearray();
         self.iteratorCounter = 0;
         self.forCheckPurposes_currentPath = [0];
+        self.highlevelParametersForSplitting = dict(); # This is called "high-level"
+            # in contrast to the 5-bits dedicated in every pair of bytes in 
+            # self.byteList used to specify how any stochastic process invoked on a
+            # per-split basis turned out.
         return;
 
     def __iter__(self):

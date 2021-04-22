@@ -30,6 +30,10 @@
 # 
 # 
 
+
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
 import numpy as np;
 import pickle;
 

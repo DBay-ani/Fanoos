@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 import pickle;
 import numpy as np;
 import sys;
@@ -57,6 +61,8 @@ from boxesAndBoxOperations.readAndWriteBoxes import writeBox, readBoxes;
 import struct;
 
 import re;
+
+import copy;
 
 class DescriptionState():
 
@@ -101,6 +107,19 @@ class DescriptionState():
         self.sideInformationDict = dict();
         self.sideInformationDict["dictMappingConditionIDToVolumeCoveredAndUniqueVolumeCovered"] = dict();
         return;
+
+    def readParameter(self, parameterName):
+        requires(isinstance(parameterName, str));
+        requires(len(parameterName) > 0);
+        if(parameterName not in self.internalDictionary["mostRecentOperatorParameters"]):
+            raise Exception("Tried to access non-existant parameter: " + str(parameterName));
+        # Below we return a copy to help prevent accidental modifications. Note that, while this
+        # is helpful, it does not ensure/prevent accidental modifications since the objects
+        # returned might contain references to other, primary objects, among other potential 
+        # difficulties. We do not do a deep copy to (1) avoid various sorts of potential errors
+        # with duplicating objects, as well as (2) the time / memory expense of it. Basically, 
+        # a shallow copy seems to be the appropraite level of diligence.
+        return copy.copy(self.internalDictionary["mostRecentOperatorParameters"][parameterName]);
 
     def setDescription(self, thisDescription):
         requires(isinstance(thisDescription, list));
@@ -364,7 +383,7 @@ class FirstState_DescriptionState(DescriptionState):
         self.internalDictionary["mostRecentOperatorParameters"]["removedPredicates"] = set();
         parameterDict["floatValueForBoxDivisionCutoff"] = self.getFloatValueForBoxDivisionCutoff();
         parameterDict["limitOnNumberOfTimesToMerge"] = config.defaultValues.limitOnNumberOfTimesToMerge;
-        parameterDict["splitOnlyOnRelaventVariables"]=True;
+        parameterDict["splitOnlyOnRelaventVariables"]=False;
         parameterDict["precisionForMerging"]= config.defaultValues.precisionForMerging;
         parameterDict["numberOfSamplesToTry"]=int(config.defaultValues.numberOfSamplesToTry);
         parameterDict["produceGreaterAbstraction"]=False;

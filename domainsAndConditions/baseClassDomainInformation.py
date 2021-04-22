@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 from boxesAndBoxOperations.getBox import isProperBox, getDimensionOfBox;
 from utils.contracts import *;
 import numpy as np;

@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 # Below, we make the labels powers of two so we may use them as bit-flags. Recall
 # that because we have allocated only one byte for box-labels, this allows for only
 # eight flags.

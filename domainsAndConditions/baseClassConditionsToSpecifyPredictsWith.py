@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 from utils.quickResetZ3Solver import quickResetZ3Solver;
 
 import numpy as np;

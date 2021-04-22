@@ -31,11 +31,17 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 import numpy as np;
 import sys;
 from utils.contracts import *;
 
 from boxesAndBoxOperations.getBox import isProperBox, getBox, getDimensionOfBox, getJointBox, getContainingBox, getRandomBox, boxSize;
+
+from statesAndOperatorsAndSelection.descriptionState import DescriptionState ;
 
 import z3;
 
@@ -54,13 +60,19 @@ from boxesAndBoxOperations.mergeBoxes import mergeBoxes, \
 import config;
 from descriptionGeneration.removePredicatesImpliedByOthers  import removePredicatesImpliedByOthers ;
 
-def getConsistentConditions(thisBox, numberOfSamplesToTry, listOfConditions):
+
+
+def getConsistentConditions(thisBox, listOfConditions, thisState):
     requires(isinstance(listOfConditions, list));
     requires(all([isinstance(x, CharacterizationConditionsBaseClass) for x in listOfConditions]));
     requires(isProperBox(thisBox));
-    requires(isinstance(numberOfSamplesToTry, int));
-    requires(numberOfSamplesToTry >= 0);
-    
+    requires(isinstance(thisState, DescriptionState));
+
+    numberOfSamplesToTry = thisState.readParameter("numberOfSamplesToTry");
+    assert(isinstance(numberOfSamplesToTry, int));
+    assert(numberOfSamplesToTry >= 0);
+
+
     indicesOfCandidateConditions = list(range(0, len(listOfConditions)));
     samplesToTry = getSampleVectorsToCheckAgainst(thisBox, 0.0, 1.0, numberOfSamplesToTry);
     indicesOfCandidateConditionsAfterFeasibilityCheck = [];
@@ -82,7 +94,7 @@ def getConsistentConditions(thisBox, numberOfSamplesToTry, listOfConditions):
     return listOfConsistentCondtions;
         
 
-def getMostSpecificCondition(thisBox, numberOfSamplesToTry, listOfConditions, exponentialComponent=0.0):
+def getMostSpecificCondition(thisBox, listOfConditions, thisState):
     """
     Given a list of predicates that are consistent with the box provided, randomly
     samples AROUND (not inside) the box provided to determine which of the predicates
@@ -99,10 +111,14 @@ def getMostSpecificCondition(thisBox, numberOfSamplesToTry, listOfConditions, ex
     #     thisBox, so they should at least be true for the vector at the center of the box....
     requires(all([ x.pythonFormatEvaluation(getBoxCenter(thisBox)) for x in listOfConditions]));
     requires(isProperBox(thisBox));
-    requires(isinstance(numberOfSamplesToTry, int));
-    requires(numberOfSamplesToTry >= 0);
-    requires(isinstance(exponentialComponent, float));
-    requires(exponentialComponent >= 0.0);
+    requires(isinstance(thisState, DescriptionState));
+
+    numberOfSamplesToTry = thisState.readParameter("numberOfSamplesToTry");
+    assert(isinstance(numberOfSamplesToTry, int));
+    assert(numberOfSamplesToTry >= 0);
+    exponentialComponent = thisState.readParameter("exponentialComponent");
+    assert(isinstance(exponentialComponent, float));
+    assert(exponentialComponent >= 0.0);
 
     numberOfDimensionToCover = getDimensionOfBox(thisBox);
 
@@ -124,7 +140,7 @@ def getMostSpecificCondition(thisBox, numberOfSamplesToTry, listOfConditions, ex
             thisValue = minAndMaxInfinityNormPorportionOfDistanceFromBox[thisRowIndex][columnIndex];
             minAndMaxInfinityNormPorportionOfDistanceFromBox[thisRowIndex][columnIndex] = \
                 thisValue * np.exp(exponentialComponent * thisValue);
-            
+    
     setOfIndicesOfCandidateMostSpecificValues = set();
     success=False;
     for thisMinAndMaxPorpDistance in minAndMaxInfinityNormPorportionOfDistanceFromBox:
@@ -306,19 +322,14 @@ def getVolumesCoveredInformation(listOfBoxes, coveringDescriptionsFiltered, dict
 
 
 
-def getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesToTry, listOfConditions, listMappingAxisIndexToVariableInQuestion, \
-    produceGreaterAbstraction=False, exponentialComponent=0.0):
+def getInitialListOfConditionsConsistentWithBoxes(\
+        listOfBoxes, listOfConditions, listMappingAxisIndexToVariableInQuestion, thisState):  
+    requires(isinstance(thisState, DescriptionState));
     requires(isinstance(listOfConditions, list));
     requires(all([isinstance(x, CharacterizationConditionsBaseClass) for x in listOfConditions]));
     requires(isinstance(listOfBoxes, list));
     requires(len(listOfBoxes) > 0);
     requires(all([isProperBox(thisBox) for thisBox in listOfBoxes]));
-    requires(isinstance(numberOfSamplesToTry, int));
-    requires(numberOfSamplesToTry >= 0);
-    requires(isinstance(produceGreaterAbstraction, bool));
-    requires(isinstance(exponentialComponent, float));
-    requires(exponentialComponent >= 0.0);
-    requires((exponentialComponent == 0.0) or produceGreaterAbstraction); # i.e., if exponentialComponent > 0 then produceGreaterAbstraction is True.
     requires(isinstance(listMappingAxisIndexToVariableInQuestion, list));
     requires(all([isinstance(x, z3.z3.ArithRef) for x in listMappingAxisIndexToVariableInQuestion]));
     requires(len(listMappingAxisIndexToVariableInQuestion) == getDimensionOfBox(listOfBoxes[0]));
@@ -330,7 +341,8 @@ def getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesTo
     listOfSetsCoveringBox = [];
     boxIndex = 0;
     for thisBox in listOfBoxes:
-        consistentConditions = [listOfConditions[x] for x in getConsistentConditions(thisBox, numberOfSamplesToTry, listOfConditions)  ];
+        consistentConditions = [listOfConditions[x] for x in \
+            getConsistentConditions(thisBox, listOfConditions, thisState)  ];
 
         # below chunk is important for removing redundant (in respect to logical implication) predicates
         # at the end.
@@ -344,17 +356,17 @@ def getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesTo
 
         # TODO: fix the following: the name of the below variable should be 
         #     subIndicesOfMostSpecificConsistentConditions, not
-        #     subIndicesOfMostGeneneralConsistentConditions - that is mostly the opposite of what is meant...
-        subIndicesOfMostGeneneralConsistentConditions = getMostSpecificCondition(\
+        #     subIndicesOfMostGeneralConsistentConditions - that is mostly the opposite of what is meant...
+        subIndicesOfMostGeneralConsistentConditions = getMostSpecificCondition(\
                     thisBox, \
-                    numberOfSamplesToTry, \
                     consistentConditions, \
-                    exponentialComponent);
+                    thisState);
 
-        if( (len(consistentConditions) == 0)  or ( subIndicesOfMostGeneneralConsistentConditions == None  ) ):
+        if( (len(consistentConditions) == 0)  or ( subIndicesOfMostGeneralConsistentConditions == None  ) ):
 
             setOfConditionsCoveringThisBox = set();
-
+            produceGreaterAbstraction = thisState.readParameter("produceGreaterAbstraction");
+            assert(isinstance(produceGreaterAbstraction, bool));
             if(   (not produceGreaterAbstraction)  or (len(consistentConditions) == 0) ):
                 thisConditionForBox = Condition_TheBoxItself(\
                     listOfConditions[0].z3Solver,thisBox, listMappingAxisIndexToVariableInQuestion); 
@@ -372,7 +384,7 @@ def getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesTo
                 setOfConditionsCoveringThisBox.update({x.getID() for x in consistentConditions});
             listOfSetsCoveringBox.append(setOfConditionsCoveringThisBox);
         else:
-            mostGeneneralConsistentConditions = [consistentConditions[x] for x in subIndicesOfMostGeneneralConsistentConditions];
+            mostGeneneralConsistentConditions = [consistentConditions[x] for x in subIndicesOfMostGeneralConsistentConditions];
 
             listOfSetsCoveringBox.append({x.getID() for x in mostGeneneralConsistentConditions});
 
@@ -382,22 +394,17 @@ def getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesTo
 import time;
 
 
-def generateDescription(listOfBoxes, numberOfSamplesToTry, listOfConditions, listMappingAxisIndexToVariableInQuestion, \
-    produceGreaterAbstraction=False, exponentialComponent=0.0):
+def generateDescription(listOfBoxes, listOfConditions, listMappingAxisIndexToVariableInQuestion, thisState):
     requires(isinstance(listOfConditions, list));
     requires(all([isinstance(x, CharacterizationConditionsBaseClass) for x in listOfConditions]));
     requires(isinstance(listOfBoxes, list));
     requires(all([isProperBox(thisBox) for thisBox in listOfBoxes]));
-    requires(isinstance(numberOfSamplesToTry, int));
-    requires(numberOfSamplesToTry >= 0);
-    requires(isinstance(produceGreaterAbstraction, bool));
-    requires(isinstance(exponentialComponent, float));
-    requires(exponentialComponent >= 0.0);
-    requires((exponentialComponent == 0.0) or produceGreaterAbstraction); # i.e., if exponentialComponent > 0 then produceGreaterAbstraction is True.
     requires(isinstance(listMappingAxisIndexToVariableInQuestion, list));
     requires(all([isinstance(x, z3.z3.ArithRef) for x in listMappingAxisIndexToVariableInQuestion]));
     requires( len(listOfBoxes) == 0 or \
         len(listMappingAxisIndexToVariableInQuestion) == getDimensionOfBox(listOfBoxes[0]));
+    requires(isinstance(thisState, DescriptionState));
+
 
     if(len(listOfBoxes) == 0):
         raise NotImplementedError("There is No Situation where the State of Affairs Asked-About Occurs "+ \
@@ -405,11 +412,9 @@ def generateDescription(listOfBoxes, numberOfSamplesToTry, listOfConditions, lis
                                   "that are applicable to your question).");
     assert(len(listOfBoxes)  > 0);
 
-    
     (listOfConditions_after, dictMappingConditionToBoxesItIsConsistentWith, listOfSetsCoveringBox) = \
-        getInitialListOfConditionsConsistentWithBoxes(listOfBoxes, numberOfSamplesToTry, \
-            listOfConditions, listMappingAxisIndexToVariableInQuestion, \
-            produceGreaterAbstraction=produceGreaterAbstraction, exponentialComponent=exponentialComponent);
+        getInitialListOfConditionsConsistentWithBoxes(\
+            listOfBoxes, listOfConditions, listMappingAxisIndexToVariableInQuestion, thisState); 
 
     # Below two variables are for use in the set coverings.
     dimensionOfSpace = getDimensionOfBox(listOfBoxes[0]);

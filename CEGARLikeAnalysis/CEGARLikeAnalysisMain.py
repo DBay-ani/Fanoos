@@ -31,6 +31,10 @@
 # 
 
 
+import config;
+_LOCALDEBUGFLAG = config.debugFlags.get_v_print_ForThisFile(__file__);
+    
+
 import numpy as np
 from utils.contracts import *;
 
@@ -175,18 +179,38 @@ from databaseInterface.databaseValueTracker import ObjDatabaseValueTracker;
 
 import config;
 
+import pickle;
+
 def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStatisfy, functionToDetermineWhenToGiveUpOnBox, \
         limitSplittingToAxisWithIndicesInThisList=None, functionToCheckWhetherNoPointsInTheBoxStatisfyCondition=None,\
         completelyRedoRefinement=config.defaultValues.completelyRedoRefinementEachCallToCEGAR):
     timingInfoForLocation_2e048534_BoxTest = [];
-    requires(isinstance(limitSplittingToAxisWithIndicesInThisList, list) or (limitSplittingToAxisWithIndicesInThisList == None));
-    requires( (limitSplittingToAxisWithIndicesInThisList == None) or \
+    requires(isinstance(limitSplittingToAxisWithIndicesInThisList, list));
+    requires( \
         np.all([(x >= 0 and x < getDimensionOfBox(universeBox)) for x in limitSplittingToAxisWithIndicesInThisList]));
-    requires(  (limitSplittingToAxisWithIndicesInThisList == None) or \
+    requires( \
         (len(set(limitSplittingToAxisWithIndicesInThisList)) == len(limitSplittingToAxisWithIndicesInThisList))  );
 
-    if(completelyRedoRefinement):
+    # One probably can't effectively put the function being checked in the parameters being
+    #     sorted (at least not by using pickle) since the functions were locally scoped.
+    #     Within the responces for a single question, however, that should not be a issue anytime
+    #     in the near futures. Also, within the responces for a single question, the universeBox 
+    #     is unlikely to be something to be changed anytime in the near future. Thus, for now
+    #     those are not essential items to store.
+    pickleOfParametersPassedInHereThatMayChangeWithTheSameQuestion = \
+        pickle.dumps({"limitSplittingToAxisWithIndicesInThisList" : limitSplittingToAxisWithIndicesInThisList});
+
+
+    if(completelyRedoRefinement or \
+            (RefPathManager.old.highlevelParametersForSplitting != \
+             pickleOfParametersPassedInHereThatMayChangeWithTheSameQuestion ) \
+        ):
         RefPathManager.reset();
+        RefPathManager.old.highlevelParametersForSplitting = \
+            pickleOfParametersPassedInHereThatMayChangeWithTheSameQuestion;
+
+    RefPathManager.new.highlevelParametersForSplitting = \
+        pickleOfParametersPassedInHereThatMayChangeWithTheSameQuestion;
 
     CEGARFileWrittingManagerInstance = CEGARFileWrittingManager(universeBox);
     CEGARFileWrittingManagerInstance.writeMetadata(\
@@ -202,14 +226,12 @@ def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStati
     assert(len(theseInputAbstractions) > 0);
 
     scalingForSplitting = universeBox[:, 1] - universeBox[:, 0]; 
+    tempBox = scalingForSplitting.copy(); # TODO: remove this unnecessary copy in the near future.
     # As implemented in the splitBox file, when the scaling factor has a nan in a posotion, 
     # the axis corresponding to that index is ignored.
-    if(limitSplittingToAxisWithIndicesInThisList != None):
-        tempBox = scalingForSplitting.copy();
-        tempBox[:] = np.nan;
-        tempBox[limitSplittingToAxisWithIndicesInThisList] = scalingForSplitting[limitSplittingToAxisWithIndicesInThisList];
-        scalingForSplitting = tempBox;
-
+    tempBox[:] = np.nan;
+    tempBox[limitSplittingToAxisWithIndicesInThisList] = scalingForSplitting[limitSplittingToAxisWithIndicesInThisList];
+    scalingForSplitting = tempBox;
 
     for index, thisBox in enumerate(theseInputAbstractions):
         anySuccess = analysis_divingIntoBox(thisBox, thisInstanceOfModelBoxProgatorManager, \
@@ -221,6 +243,8 @@ def analysis(universeBox, thisInstanceOfModelBoxProgatorManager, functionToStati
 
     CEGARFileWrittingManagerInstance.closeFilesToSaveResultsIn();
     RefPathManager.replaceOld();
+    RefPathManager.new.highlevelParametersForSplitting = \
+        pickleOfParametersPassedInHereThatMayChangeWithTheSameQuestion;
     return CEGARFileWrittingManagerInstance;
 
 
