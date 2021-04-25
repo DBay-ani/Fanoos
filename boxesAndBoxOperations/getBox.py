@@ -135,6 +135,11 @@ def boxSize(thisBox):
     return np.product(thisBox[:,1] - thisBox[:,0]);
 
 
+def getSumOfSideLengths(thisBox):
+    requires(isProperBox(thisBox));
+    return np.sum(np.diff(thisBox, axis=1));
+
+
 def boxContainsVector(thisBox, vector):
     requires(isProperBox(thisBox));
     requires(isinstance(vector, np.ndarray));

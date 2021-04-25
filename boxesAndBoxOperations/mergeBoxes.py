@@ -41,10 +41,6 @@ from boxesAndBoxOperations.getBox import *;
 
 import config;
 
-def boxSize(thisBox):
-    requires(isProperBox(thisBox));
-    return np.product(thisBox[:,1] - thisBox[:,0]);
-
 def boxesCanMergeWithNoGap(boxA, boxB):
     requires(isProperBox(boxA));
     requires(isProperBox(boxB));
@@ -416,5 +412,94 @@ def mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneA
     assert(set(indicesToKeep) == indicesToContinueCheckingAgainst); # this should apply
         # by the end of the process....
     return [thisListOfBoxes[thisIndex] for thisIndex in indicesToKeep];
+
+
+
+
+
+
+
+def mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster(thisListOfBoxes):
+    """
+    If box A contains box B, then the volume and sum-of-side-lengths of A must be greater than the
+    respective values of B. Note that it is possible for two boxes to have equal volume, but different
+    sum-of-side-lengths; in three dimensions, for instance, if box A is 2-by-2-by-2 and box B is
+    8-by-1-by-1, boxes A and B have equal volume but the sum of B's side lengths is greater than 
+    that of B. If we consider a box C with side-lengths 2.5-by-2.5-by-2.5, even then its volume is
+    greater than B's volume, but the sum of side-lengths of B is greater than C's. 
+
+    In the code of this function, we sort in descending order of volume. After that, given 
+    two boxes, A and B, we check that the sum A's sides is no less than the sum of B's sides
+    prior to the slightly more expensive check of whether A actually contains B. 
+    """
+    indicesToContinueCheckingAgainst = set(range(0, len(thisListOfBoxes)));
+    volumesOfBoxes = [boxSize(x) for x in thisListOfBoxes];
+    sumOfSideLengthsOfBoxes = [getSumOfSideLengths(x) for x in thisListOfBoxes];
+    orderToCheckBoxes = sorted( list(range(0, len(thisListOfBoxes))) , \
+                            reverse=True, key=(lambda x: volumesOfBoxes[x]) );
+    currentRawIndex = 0;
+    while(currentRawIndex < len(thisListOfBoxes)):
+        currentConvertedIndex = orderToCheckBoxes[currentRawIndex];
+        currentRawIndex = currentRawIndex + 1;
+        if(currentConvertedIndex < 0):
+            continue;
+        thisBox = thisListOfBoxes[currentConvertedIndex];
+        sumOfSideLengthsOfThisBox = sumOfSideLengthsOfBoxes[currentConvertedIndex];
+        tempRawIndex = currentRawIndex; # recall that we already incremented
+            # currentRawIndex by 1.
+        while(tempRawIndex < len(thisListOfBoxes)):
+            tempConvertedIndex = orderToCheckBoxes[tempRawIndex];
+            tempRawIndex = tempRawIndex + 1;
+            if(tempConvertedIndex < 0):
+                continue;
+            # Note the important use of tempRawIndex as oppossed to tempConvertedIndex
+            # below
+            if( sumOfSideLengthsOfBoxes[tempConvertedIndex] > sumOfSideLengthsOfThisBox):
+                continue;
+            if(boxAContainsBoxB(thisBox, thisListOfBoxes[tempConvertedIndex])):
+                orderToCheckBoxes[tempRawIndex-1] = -1;
+    return [thisListOfBoxes[x] for x in orderToCheckBoxes if (x >= 0)];
+
+if(_LOCALDEBUGFLAG > 0):
+    import pickle;
+    import time;
+
+def test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster():    
+    def convertToEasilyComparedValues(thisListOfBoxes):
+        tempList = [pickle.dumps(x) for x in thisListOfBoxes];
+        return sorted(tempList);
+    def orderForDisplay(thisListOfBoxes):
+        return sorted(thisListOfBoxes, key=(lambda x: pickle.dumps(x)));
+    def checkResults(thisBoxList):
+        Astart=time.clock();
+        expectedResult = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother(thisBoxList);
+        Aend=time.clock();
+        resultToCheck = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster(thisBoxList);
+        Bend=time.clock();
+        print("             time for non-optimized:" + str(Aend-Astart) +\
+            "\n          time for improved version:" + str(Bend- Aend), \
+            flush=True);
+        if(convertToEasilyComparedValues(expectedResult) != convertToEasilyComparedValues(resultToCheck)):
+            raise Exception("\n\n\n" + \
+                "test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster:\n"+ \
+                "Test failed: \n" + \
+                "Input = " + str(thisBoxList) + "\n" + \
+                "expectedResult = "+ str(orderForDisplay(expectedResult)) + "\n" +\
+                "resultToCheck  = " + str(orderForDisplay(resultToCheck)) );
+        endOfCheck=time.clock();
+        print("        time for checking results:" + str(endOfCheck - Bend), flush=True);
+        return;
+    
+    print("test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster:", flush=True);
+    for thisNumberOfBoxesToCheck in [5, 25, 1000]:
+        for thisDimension in [1, 2, 5, 10]:
+            print("    testing: dimension:" + str(thisDimension) + \
+                  ", thisNumberOfBoxesToCheck:" + str(thisNumberOfBoxesToCheck), flush=True);
+            thisBoxList = [getRandomBox(thisDimension) for x in range(0, thisNumberOfBoxesToCheck)];
+            checkResults(thisBoxList);
+    return;
+
+if(_LOCALDEBUGFLAG > 0):
+    test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster();
 
 

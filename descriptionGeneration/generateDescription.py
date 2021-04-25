@@ -55,7 +55,7 @@ from boxesAndBoxOperations.splitBox import splitBox;
 from descriptionGeneration.draftCodeForMulitVariantConditionLearning import getApproximateMultivariateSetCover;
 
 from boxesAndBoxOperations.mergeBoxes import mergeBoxes, \
-                                             mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother ;
+                                             mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster ;
 
 import config;
 from descriptionGeneration.removePredicatesImpliedByOthers  import removePredicatesImpliedByOthers ;
@@ -236,7 +236,7 @@ def handleNewInstancesOf_BoxItself(coveringDescriptionsFiltered, listOfCondition
                             if not isinstance(thisCondition, Condition_TheBoxItself)];
     temp = mergeBoxes(listOfCandidateBoxes, precision=5, maxNumberOfIterations=None); 
     newMergedBoxes = list(temp["dictMappingIndexToBox"].values());
-    newMergedBoxes =  mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother(newMergedBoxes);
+    newMergedBoxes =  mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster(newMergedBoxes);
 
     temp = mergeBoxes(listOfCandidateBoxes, precision=5, maxNumberOfIterations=None); 
 
@@ -354,15 +354,12 @@ def getInitialListOfConditionsConsistentWithBoxes(\
         assert(boxIndex + 1 > boxIndex); # weak overflow check....
         boxIndex = boxIndex + 1;
 
-        # TODO: fix the following: the name of the below variable should be 
-        #     subIndicesOfMostSpecificConsistentConditions, not
-        #     subIndicesOfMostGeneralConsistentConditions - that is mostly the opposite of what is meant...
-        subIndicesOfMostGeneralConsistentConditions = getMostSpecificCondition(\
+        subIndicesOfMostSpecificConsistentConditions = getMostSpecificCondition(\
                     thisBox, \
                     consistentConditions, \
                     thisState);
 
-        if( (len(consistentConditions) == 0)  or ( subIndicesOfMostGeneralConsistentConditions == None  ) ):
+        if( (len(consistentConditions) == 0)  or ( subIndicesOfMostSpecificConsistentConditions == None  ) ):
 
             setOfConditionsCoveringThisBox = set();
             produceGreaterAbstraction = thisState.readParameter("produceGreaterAbstraction");
@@ -384,9 +381,10 @@ def getInitialListOfConditionsConsistentWithBoxes(\
                 setOfConditionsCoveringThisBox.update({x.getID() for x in consistentConditions});
             listOfSetsCoveringBox.append(setOfConditionsCoveringThisBox);
         else:
-            mostGeneneralConsistentConditions = [consistentConditions[x] for x in subIndicesOfMostGeneralConsistentConditions];
+            mostSpecificConsistentConditions = [consistentConditions[x] for x in \
+                                                subIndicesOfMostSpecificConsistentConditions];
 
-            listOfSetsCoveringBox.append({x.getID() for x in mostGeneneralConsistentConditions});
+            listOfSetsCoveringBox.append({x.getID() for x in mostSpecificConsistentConditions});
 
     return (listOfConditions_after, dictMappingConditionToBoxesItIsConsistentWith, listOfSetsCoveringBox);
 

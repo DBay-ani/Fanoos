@@ -57,7 +57,7 @@ from boxesAndBoxOperations.readAndWriteBoxes import readBoxes;
 from boxesAndBoxOperations.splitBox import splitBox;
 from CEGARLikeAnalysis.CEGARLikeAnalysisMain import analysis ;
 
-from boxesAndBoxOperations.mergeBoxes import mergeBoxes, mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother;
+from boxesAndBoxOperations.mergeBoxes import mergeBoxes, mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster;
 
 import inspect;
 
@@ -306,7 +306,7 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
             temp = mergeBoxes(boxesToDescribePriorToMerging, precision=precisionForMerging, \
                             maxNumberOfIterations=limitOnNumberOfTimesToMerge);
             boxesToReturn = list(temp["dictMappingIndexToBox"].values());
-            boxesToReturn = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother(boxesToReturn);
+            boxesToReturn = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster(boxesToReturn);
 
             self.recordBoxStats(boxesToReturn, \
                 middleLabelForBoxStatsRecording + "boxesOfInterestAfterMerging");

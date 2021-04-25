@@ -170,7 +170,10 @@ for typical users. We --highly-- recommend using AWS (or other computer
 infrastructure which allows a native install) for the sake of performance. For
 those who simply wish to casually interact with the system and get a high-level
 idea of what interactions are like, the Docker install may be sufficient and
-would be more convenient to setup.
+would be more convenient to setup. For added efficiency, there is a script
+that will alter the python code to remove contracts from it, envokeable
+with the command "python3 removePythonContracts.py"; we recommand against 
+running the removePythonContracts.py script for any sort of casual interaction.
 ===============================================================================
 
 V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V
