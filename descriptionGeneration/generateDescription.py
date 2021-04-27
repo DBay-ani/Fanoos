@@ -62,36 +62,80 @@ from descriptionGeneration.removePredicatesImpliedByOthers  import removePredica
 
 
 
-def getConsistentConditions(thisBox, listOfConditions, thisState):
+def getConsistentConditions(thisBox, listOfConditions, prioritizedIndexes, thisState):
     requires(isinstance(listOfConditions, list));
     requires(all([isinstance(x, CharacterizationConditionsBaseClass) for x in listOfConditions]));
     requires(isProperBox(thisBox));
+    requires(isinstance(prioritizedIndexes, set));
+    requires(all([isinstance(x, int) for x in prioritizedIndexes]));
+    requires((len(prioritizedIndexes) == 0) or (min(prioritizedIndexes) >= 0));
+    requires((len(prioritizedIndexes) == 0) or (max(prioritizedIndexes) < len(listOfConditions)));
     requires(isinstance(thisState, DescriptionState));
 
     numberOfSamplesToTry = thisState.readParameter("numberOfSamplesToTry");
     assert(isinstance(numberOfSamplesToTry, int));
     assert(numberOfSamplesToTry >= 0);
 
-
+    listOfConsistentConditions = [];
+    variablesCovered = set();
     indicesOfCandidateConditions = list(range(0, len(listOfConditions)));
     samplesToTry = getSampleVectorsToCheckAgainst(thisBox, 0.0, 1.0, numberOfSamplesToTry);
-    indicesOfCandidateConditionsAfterFeasibilityCheck = [];
-    for thisConditionIndex in indicesOfCandidateConditions:
-        success = True;
-        for thisSample in samplesToTry:
-            verdict = listOfConditions[thisConditionIndex].pythonFormatEvaluation(thisSample);
-            if(not verdict):
-                success = False;
-                break;
-        if(success):
-            indicesOfCandidateConditionsAfterFeasibilityCheck.append(thisConditionIndex);
+    for usePrioritizedIndices in [True , False]:
+        # In the below asserts, recall that "if p then q" is logically equivalent to 
+        # "(not p) or q"
+        assert( (usePrioritizedIndices ) or \
+                (len(variablesCovered) <  getDimensionOfBox(thisBox)) \
+            );
 
-    listOfConsistentCondtions = [];
-    for thisConditionIndex in indicesOfCandidateConditionsAfterFeasibilityCheck:
-        if(listOfConditions[thisConditionIndex].allMembersOfBoxSatisfyCondition(thisBox)):
-            listOfConsistentCondtions.append(thisConditionIndex);
+        if( (len(prioritizedIndexes) == 0) and usePrioritizedIndices):
+            continue;
 
-    return listOfConsistentCondtions;
+        indicesOfCandidateConditionsAfterFeasibilityCheck = [];
+        for thisConditionIndex in indicesOfCandidateConditions:
+            if( usePrioritizedIndices ^ (thisConditionIndex in prioritizedIndexes)):
+                continue;
+
+            if( (not usePrioritizedIndices) and \
+                variablesCovered.issuperset(listOfConditions[thisConditionIndex].relaventVariables()) ):
+                continue;
+
+            success = True;
+            for thisSample in samplesToTry:
+                verdict = listOfConditions[thisConditionIndex].pythonFormatEvaluation(thisSample);
+                if(not verdict):
+                    success = False;
+                    break;
+            if(success):
+                indicesOfCandidateConditionsAfterFeasibilityCheck.append(thisConditionIndex);
+
+        # In the below asserts, recall that "if p then q" is logically equivalent to 
+        # "(not p) or q"
+        assert( (not usePrioritizedIndices ) or \
+                prioritizedIndexes.issuperset(indicesOfCandidateConditionsAfterFeasibilityCheck) \
+            );
+        assert( (usePrioritizedIndices ) or \
+                (len(variablesCovered) <  getDimensionOfBox(thisBox)) \
+            );
+
+        for thisConditionIndex in indicesOfCandidateConditionsAfterFeasibilityCheck:
+            if(listOfConditions[thisConditionIndex].allMembersOfBoxSatisfyCondition(thisBox)):
+                listOfConsistentConditions.append(thisConditionIndex);
+                if(usePrioritizedIndices):
+                    variablesCovered.update(listOfConditions[thisConditionIndex].relaventVariables());
+
+        # In the below asserts, recall that "if p then q" is logically equivalent to
+        # "(not p) or q"
+        assert( (not usePrioritizedIndices ) or \
+                prioritizedIndexes.issuperset(listOfConsistentConditions) \
+            );
+        assert( (usePrioritizedIndices ) or \
+                (len(variablesCovered) <  getDimensionOfBox(thisBox)) \
+            );
+
+        if(len(variablesCovered) == getDimensionOfBox(thisBox)):
+            return listOfConsistentConditions;
+
+    return listOfConsistentConditions;
         
 
 def getMostSpecificCondition(thisBox, listOfConditions, thisState):
@@ -340,9 +384,10 @@ def getInitialListOfConditionsConsistentWithBoxes(\
     dictMappingConditionToBoxesItIsConsistentWith = dict();
     listOfSetsCoveringBox = [];
     boxIndex = 0;
+    prioritizedConditionIndices = set();
     for thisBox in listOfBoxes:
         consistentConditions = [listOfConditions[x] for x in \
-            getConsistentConditions(thisBox, listOfConditions, thisState)  ];
+            getConsistentConditions(thisBox, listOfConditions, prioritizedConditionIndices, thisState)  ];
 
         # below chunk is important for removing redundant (in respect to logical implication) predicates
         # at the end.
@@ -358,6 +403,9 @@ def getInitialListOfConditionsConsistentWithBoxes(\
                     thisBox, \
                     consistentConditions, \
                     thisState);
+
+        if(subIndicesOfMostSpecificConsistentConditions is not None):
+            prioritizedConditionIndices.update(subIndicesOfMostSpecificConsistentConditions);
 
         if( (len(consistentConditions) == 0)  or ( subIndicesOfMostSpecificConsistentConditions == None  ) ):
 
@@ -383,7 +431,6 @@ def getInitialListOfConditionsConsistentWithBoxes(\
         else:
             mostSpecificConsistentConditions = [consistentConditions[x] for x in \
                                                 subIndicesOfMostSpecificConsistentConditions];
-
             listOfSetsCoveringBox.append({x.getID() for x in mostSpecificConsistentConditions});
 
     return (listOfConditions_after, dictMappingConditionToBoxesItIsConsistentWith, listOfSetsCoveringBox);
