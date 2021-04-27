@@ -49,10 +49,77 @@ from domainsAndConditions.baseClassConditionsToSpecifyPredictsWith import Charac
 
 import config;
 
+def removePredicatesHelper_sytaxBasedFilterForRedundantConjunctions(thisCovering):
+    requires(isinstance(thisCovering, list));
+    requires(all([isinstance(x, CharacterizationConditionsBaseClass) for x in thisCovering]));
+    # Below requires checks that none of the elements of thisCovering are repeats.
+    requires(len(set([x.getID() for x in thisCovering])) == len([x.getID() for x in thisCovering]) );
+
+    thisCoveringToReturn=[];
+
+    def convertToFrozenSet(thisIDOrSetOfIDs):
+         requires(isinstance(thisIDOrSetOfIDs, frozenset) or isinstance(thisIDOrSetOfIDs, str));
+         valueToReturn = thisIDOrSetOfIDs if isinstance(thisIDOrSetOfIDs, frozenset) else frozenset([thisIDOrSetOfIDs]);
+         ensures(isinstance(valueToReturn, frozenset));
+         ensures( (thisIDOrSetOfIDs in valueToReturn) or (thisIDOrSetOfIDs == valueToReturn) );
+         return valueToReturn;      
+
+    idsAsFrozenSets = [convertToFrozenSet(x.getID()) for x in thisCovering];
+    inverseIndex = sorted( range(0, len(thisCovering)), reverse=True, key=(lambda x: len(idsAsFrozenSets[x])));
+    idsAsFrozenSets.sort(key=(lambda x: len(x)), reverse=True);
+    assert(all([  idsAsFrozenSets[x] == \
+                  convertToFrozenSet(thisCovering[inverseIndex[x]].getID()) \
+                  for x in range(0, len(thisCovering)) ]));
+    for indexA in range(0, len(thisCovering)):
+        addThisElement = True;
+        idConditionA = idsAsFrozenSets[indexA];
+        assert(isinstance(idConditionA, frozenset));
+
+        # In the iterator below, we go in descending index order - which means
+        # the size of the set idsAsFrozenSets[indexB] is non-decreasing as the
+        # iterator proceeds. This has a couple advantages, including the fact
+        # that set-comparison operators tend to be faster when the sets 
+        # involved are smaller.
+        for indexB in range(len(thisCovering) -1 , indexA, -1): 
+            idConditionB = idsAsFrozenSets[indexB];
+            assert(isinstance(idConditionB, frozenset));
+
+            # See the last requires and this inner-loop's iterator definition
+            # for why the below assert should be true.
+            assert(idConditionA != idConditionB);
+            assert(len(idConditionA) >= len(idConditionB));
+            if(len(idConditionA) == len(idConditionB)):
+                # In this case we can break since the original list was sorted
+                # in descending order by size of the ID sets and since the
+                # iterator of this inner-loop is going in order of decreasing 
+                # index. Thus, once this condition holds, we know any further
+                # iteration of this inner-loop would just result in 
+                # len(idConditionB) == len(idConditionA) .
+                break;
+
+            assert(len(idConditionA) > len(idConditionB));
+
+            # We ignore the superset since the conjunct it represents is true
+            # only a subset of the times the conjunct represented by the subset
+            # is true.
+            if(idConditionA.issuperset(idConditionB)):
+                assert(\
+                    convertToFrozenSet(thisCovering[inverseIndex[indexA]].getID()).issuperset( \
+                        convertToFrozenSet(thisCovering[inverseIndex[indexB]].getID()) \
+                    ) );
+                addThisElement =  False;
+                break;
+        if(addThisElement):
+            thisCoveringToReturn.append(thisCovering[inverseIndex[indexA]]);
+    ensures({x.getID() for x in thisCovering}.issuperset({x.getID() for x in thisCoveringToReturn}));
+    return thisCoveringToReturn;
 
 def removePredicatesImpliedByOthers(coveringDescriptionsFiltered, \
     dictMappingConditionToBoxesItIsConsistentWith, listOfBoxes, \
     listMappingAxisIndexToVariableInQuestion, dictMappingConditionIDToVolumeCoveredAndUniqueVolumeCovered_initial):
+
+    coveringDescriptionsFiltered = \
+        removePredicatesHelper_sytaxBasedFilterForRedundantConjunctions(coveringDescriptionsFiltered)
 
     z3Solver = coveringDescriptionsFiltered[0].z3Solver;
 
