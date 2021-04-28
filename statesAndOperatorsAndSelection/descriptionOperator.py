@@ -601,7 +601,7 @@ class Operator_IAL_7b16e7a5(Operator_IncreaseAbstractionLevel, Operator_FreshGen
         parameters = stateAppliedTo.getCopyOfParameters();
         parameters["floatValueForBoxDivisionCutoff"] = oldParameters["floatValueForBoxDivisionCutoff"] * 2.0;
         parameters["limitOnNumberOfTimesToMerge"] = 0;
-        parameters["splitOnlyOnRelaventVariables"] = True;
+        parameters["splitOnlyOnRelaventVariables"] = False;
         parameters["precisionForMerging"] = max(1.0, oldParameters["precisionForMerging"] - 1.0); 
         parameters["numberOfSamplesToTry"] = oldParameters["numberOfSamplesToTry"];
         parameters["produceGreaterAbstraction"] = True; 
