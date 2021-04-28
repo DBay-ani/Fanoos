@@ -431,34 +431,54 @@ def mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneA
     In the code of this function, we sort in descending order of volume. After that, given 
     two boxes, A and B, we check that the sum A's sides is no less than the sum of B's sides
     prior to the slightly more expensive check of whether A actually contains B. 
+    
+    A further check examines the lower-bounds of the first coordinates, ensuring
+    that they following the feasible order (i.e., if A[0,0] > B[0,0], then A 
+    cannot contain B) and that they are in the proper range (i.e., if 
+    (B[0,0] - A[0,0]) > sumOfA'sSideLengths then A cannot contain B). While one 
+    may be tempted to expand the axis-feasibility checks to more dimensions, 
+    this route of optimization (1) has diminishing returns, and thus does not
+    likely justify the complication to the code (2) if carried out further, must
+    be done while staying conscious of the hardware used, since (2a) the 
+    potential use of SIMD in numpy array calculations (as present in the code 
+    for boxAContainsBoxB) may actually make it more efficient that an overly 
+    engineered serial implementation in Python, (2b) considering more extreme 
+    cases, effects on cache locality may be worth bearing in mind as tempRefList
+    grows in memory consumption; concerns about case (2b), however, are are 
+    probably impractical to consider for our intentions.
     """
-    indicesToContinueCheckingAgainst = set(range(0, len(thisListOfBoxes)));
-    volumesOfBoxes = [boxSize(x) for x in thisListOfBoxes];
-    sumOfSideLengthsOfBoxes = [getSumOfSideLengths(x) for x in thisListOfBoxes];
+    tempRefList = [ (boxSize(x), getSumOfSideLengths(x), -x[0,0]) for x in thisListOfBoxes];
     orderToCheckBoxes = sorted( list(range(0, len(thisListOfBoxes))) , \
-                            reverse=True, key=(lambda x: volumesOfBoxes[x]) );
-    currentRawIndex = 0;
-    while(currentRawIndex < len(thisListOfBoxes)):
-        currentConvertedIndex = orderToCheckBoxes[currentRawIndex];
-        currentRawIndex = currentRawIndex + 1;
-        if(currentConvertedIndex < 0):
+                            reverse=True, key=(lambda x: tempRefList[x]) );
+    rawIndex_A = 0;
+    while(rawIndex_A < len(thisListOfBoxes)):
+        convertedIndex_A = orderToCheckBoxes[rawIndex_A];
+        rawIndex_A = rawIndex_A + 1;
+        if(convertedIndex_A < 0):
             continue;
-        thisBox = thisListOfBoxes[currentConvertedIndex];
-        sumOfSideLengthsOfThisBox = sumOfSideLengthsOfBoxes[currentConvertedIndex];
-        tempRawIndex = currentRawIndex; # recall that we already incremented
-            # currentRawIndex by 1.
-        while(tempRawIndex < len(thisListOfBoxes)):
-            tempConvertedIndex = orderToCheckBoxes[tempRawIndex];
-            tempRawIndex = tempRawIndex + 1;
-            if(tempConvertedIndex < 0):
+        dataElem_A=tempRefList[convertedIndex_A];
+        sumSideLength_A = dataElem_A[1];
+        negativeLowerBoundFirstCoordinate_A = dataElem_A[2];
+        thisBox_A = thisListOfBoxes[convertedIndex_A];
+        rawIndex_B = rawIndex_A; # recall that we already incremented
+            # rawIndex_A by 1.
+        while(rawIndex_B < len(thisListOfBoxes)):
+            convertedIndex_B = orderToCheckBoxes[rawIndex_B];
+            rawIndex_B = rawIndex_B + 1;
+            if(convertedIndex_B < 0):
                 continue;
-            # Note the important use of tempRawIndex as oppossed to tempConvertedIndex
-            # below
-            if( sumOfSideLengthsOfBoxes[tempConvertedIndex] > sumOfSideLengthsOfThisBox):
+            dataElem_B = tempRefList[convertedIndex_B];
+            if(dataElem_B[1] > sumSideLength_A):
                 continue;
-            if(boxAContainsBoxB(thisBox, thisListOfBoxes[tempConvertedIndex])):
-                orderToCheckBoxes[tempRawIndex-1] = -1;
+            if(dataElem_B[2] > negativeLowerBoundFirstCoordinate_A):
+                continue;
+            if(negativeLowerBoundFirstCoordinate_A - dataElem_B[2] >
+                sumSideLength_A):
+                continue;
+            if(boxAContainsBoxB(thisBox_A, thisListOfBoxes[convertedIndex_B])):
+                orderToCheckBoxes[rawIndex_B-1] = -1;
     return [thisListOfBoxes[x] for x in orderToCheckBoxes if (x >= 0)];
+
 
 if(_LOCALDEBUGFLAG > 0):
     import pickle;
@@ -472,13 +492,15 @@ def test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContai
         return sorted(thisListOfBoxes, key=(lambda x: pickle.dumps(x)));
     def checkResults(thisBoxList):
         Astart=time.clock();
-        expectedResult = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother(thisBoxList);
-        Aend=time.clock();
         resultToCheck = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster(thisBoxList);
+        Aend=time.clock();
+        print("          time for improved version:" + str(Aend- Astart), flush=True);
+        Bstart=time.clock(); # avoids capturing the time to print to terminal, as
+            # reusing Aend would, though obviously that time should be neglegable in most
+            # cases..
+        expectedResult = mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother(thisBoxList);   
         Bend=time.clock();
-        print("             time for non-optimized:" + str(Aend-Astart) +\
-            "\n          time for improved version:" + str(Bend- Aend), \
-            flush=True);
+        print("             time for non-optimized:" + str(Bend-Bstart), flush=True);
         if(convertToEasilyComparedValues(expectedResult) != convertToEasilyComparedValues(resultToCheck)):
             raise Exception("\n\n\n" + \
                 "test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster:\n"+ \
@@ -491,12 +513,14 @@ def test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContai
         return;
     
     print("test_mergeBoxes_quadraticTime_usefulForOutputSpaceBoxes_mergeBoxesThatContainOneAnother_faster:", flush=True);
-    for thisNumberOfBoxesToCheck in [5, 25, 1000]:
-        for thisDimension in [1, 2, 5, 10]:
+    for thisNumberOfBoxesToCheck in [5, 25, 1000, 5000]:
+        for thisDimension in [1, 2, 5, 10, 30]:
             print("    testing: dimension:" + str(thisDimension) + \
                   ", thisNumberOfBoxesToCheck:" + str(thisNumberOfBoxesToCheck), flush=True);
-            thisBoxList = [getRandomBox(thisDimension) for x in range(0, thisNumberOfBoxesToCheck)];
-            checkResults(thisBoxList);
+            for thisTrialNumber in range(1,6):
+                print("    trial:" + str(thisTrialNumber), flush=True);
+                thisBoxList = [getRandomBox(thisDimension) for x in range(0, thisNumberOfBoxesToCheck)];
+                checkResults(thisBoxList);
     return;
 
 if(_LOCALDEBUGFLAG > 0):
