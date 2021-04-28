@@ -198,14 +198,30 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
         assert(isinstance(splitOnlyOnRelaventVariables, bool));
         
 
-        axisToSplitOn= list( range(0, len(self.variablesConditionMayInclude)) );
+        axisToSplitOn= list( range(0, getDimensionOfBox(self.domainInfo.getInputSpaceUniverseBox())) );
         if(splitOnlyOnRelaventVariables):
             setOfRelaventVariables = set();
             for thisCondition in self.conditionsToBeConsistentWith:
                 setOfRelaventVariables.update(thisCondition.relaventVariables());
-            axisToSplitOn=[\
-                thisIndex for thisIndex in range(0, len(self.variablesConditionMayInclude)) \
-                if (self.variablesConditionMayInclude[thisIndex] in setOfRelaventVariables)];
+            tempAxisToSplitOn=[\
+                thisIndex for thisIndex in axisToSplitOn \
+                if (self.domainInfo.inputSpaceVariables()[thisIndex] in setOfRelaventVariables)];
+            if(len(tempAxisToSplitOn) > 0): #This would fail to happen, for instanc, when 
+                # self.conditionsToBeConsistentWith specify conditions over the output space
+                # as oppossed to the input space.
+                axisToSplitOn=tempAxisToSplitOn;
+        assert(len(axisToSplitOn) > 0);
+        # The below assert is most easily understood from converting (p or q) to (if (not p) then q).
+        # That is, if axisToSplitOn does not include the whole input space, it is because 
+        # splitOnlyOnRelaventVariables has been enabled. Note that this does NOT say the converse,
+        # since even if splitOnlyOnRelaventVariables is True, axisToSplitOn might not reduce in
+        # size for a number of reasons.
+        assert( (len(axisToSplitOn) == len(self.domainInfo.inputSpaceVariables())) or \
+                splitOnlyOnRelaventVariables);
+        assert( len(axisToSplitOn) <= len(self.domainInfo.inputSpaceVariables()) );
+        assert( set(axisToSplitOn).issubset(range(0, len(self.domainInfo.inputSpaceVariables())) ));
+        # Below checks that the elements of axisToSplitOn are unique
+        assert( len(set(axisToSplitOn)) == len(axisToSplitOn) );
     
         axisScaling = self.domainInfo.getInputSpaceUniverseBox()[:, 1] - self.domainInfo.getInputSpaceUniverseBox()[:, 0];
         assert(all(axisScaling >= 0.0));
@@ -231,6 +247,14 @@ class Question_DomainOfVariablesInResponce(QuestionBaseClass):
             ensures(isinstance(boxesToReturn, list));
             ensures(all([isProperBox(x) for x in boxesToReturn]));
             return boxesToReturn;
+
+        # Note that the second disjunct in the below depends on the specifics
+        # of the splitting strategy and stop-criteria we use, and as such may
+        # need to be adjusted if we employ different functions later.
+        ensures(splitOnlyOnRelaventVariables or \
+            all([ np.all((x[:,1] - x[:,0]) <= (epsilonForBoxSize * axisScaling)) \
+                    for x in continuationToGetBoxesToReturn() ]) \
+            );
 
         return continuationToGetBoxesToReturn;
 
