@@ -32,8 +32,24 @@
 
 
 import time;
-randomSeedForNumpy=int( (time.time()  - 1578000000)  * 100);
-randomSeedForPython3LibRandom=int( (time.time()  - 1578000000)  * 100);
+
+# The value upperboundExclusiveOnRandomKeys is used to keep the
+# random seeds in the range accepted by the libraries 
+# envoked. For instance, the version of numpy used
+# requires the "seed must be between 0 and 2**32 - 1". The
+# "exclusive" part of the variable name indicates that the
+# random seeds should be strictly below it.
+upperboundExclusiveOnRandomKeys = 2**32;
+
+randomSeedForNumpy=int( (time.time()  - 1578000000)  * 100) % upperboundExclusiveOnRandomKeys;
+randomSeedForPython3LibRandom=int( (time.time()  - 1578000000)  * 100) % upperboundExclusiveOnRandomKeys;
+assert(isinstance(randomSeedForNumpy, int));
+assert(randomSeedForNumpy >= 0);
+assert(randomSeedForNumpy < upperboundExclusiveOnRandomKeys);
+assert(isinstance(randomSeedForPython3LibRandom, int));
+assert(randomSeedForPython3LibRandom >= 0);
+assert(randomSeedForPython3LibRandom < upperboundExclusiveOnRandomKeys);
+
 
 import numpy;
 
