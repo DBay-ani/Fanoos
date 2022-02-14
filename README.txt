@@ -1,6 +1,11 @@
 ** Fanoos: Multi-Resolution, Multi-Strength, Interactive Explanations for Learned Systems
 David Bayani and Stefan Mitsch ; paper at https://arxiv.org/abs/2006.12453
 
+For information regarding this code's license, see the "LICENSE" section below.
+For information on how to cite this code and/or the corresponding write-ups, 
+see the section "Information on Citing this Code and Corresponding Papers" 
+below.
+
 One can begin playing with the system by running:
 python3 fanoos.py
 See DEPENDENCIES.txt for a list of software dependencies this code has.
@@ -85,6 +90,75 @@ housed in this repository and its git history).
 
 ^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^
 
+
+V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V
+Information on Citing this Code and Corresponding Papers
+===============================================================================
+
+To cite the paper corresponding to this material, please use:
+    @inproceedings{DBLP:conf/vmcai/BayaniM22,
+      author    = {David Bayani and
+                   Stefan Mitsch},
+      editor    = {Bernd Finkbeiner and
+                   Thomas Wies},
+      title     = {Fanoos: Multi-resolution, Multi-strength, Interactive Explanations
+                   for Learned Systems},
+      booktitle = {Verification, Model Checking, and Abstract Interpretation - 23rd International
+                   Conference, {VMCAI} 2022, Philadelphia, PA, USA, January 16-18, 2022,
+                   Proceedings},
+      series    = {Lecture Notes in Computer Science},
+      volume    = {13182},
+      pages     = {43--68},
+      publisher = {Springer},
+      year      = {2022},
+      url       = {https://doi.org/10.1007/978-3-030-94583-1\_3},
+      doi       = {10.1007/978-3-030-94583-1\_3},
+      timestamp = {Fri, 21 Jan 2022 22:02:46 +0100},
+      biburl    = {https://dblp.org/rec/conf/vmcai/BayaniM22.bib},
+      bibsource = {dblp computer science bibliography, https://dblp.org}
+    }
+or (perhaps less preferably) cite the extended write-up at:
+    @article{DBLP:journals/corr/abs-2006-12453,
+      author    = {David Bayani and
+                   Stefan Mitsch},
+      title     = {Fanoos: Multi-Resolution, Multi-Strength, Interactive Explanations
+                   for Learned Systems},
+      journal   = {CoRR},
+      volume    = {abs/2006.12453},
+      year      = {2020},
+      url       = {https://arxiv.org/abs/2006.12453},
+      eprinttype = {arXiv},
+      eprint    = {2006.12453},
+      timestamp = {Tue, 23 Jun 2020 17:57:22 +0200},
+      biburl    = {https://dblp.org/rec/journals/corr/abs-2006-12453.bib},
+      bibsource = {dblp computer science bibliography, https://dblp.org}
+    }
+
+For a citable version of any of the material found exclusively / specifically
+in this repo, the copy of this code found on Zenodo may be of use to you, since
+it provides Bibtex citation export and a DOI:
+    @software{david_bayani_2021_5513079,
+      author       = {David Bayani},
+      title        = {{Code for the Fanoos Multi-Resolution, Multi- 
+                       Strength, Interactive XAI System}},
+      month        = mar,
+      year         = 2021,
+      publisher    = {Zenodo},
+      doi          = {10.5281/zenodo.5513079},
+      url          = {https://doi.org/10.5281/zenodo.5513079}
+    }
+The content on Zenodo is immutable, so I cannot alter or takedown any material
+that appears there after it is uploaded (barring extreme cases that fit narrow 
+guidelines established by that organization, and which require permission and 
+oversight from those governing Zenodo - even then, upload timestamps most 
+likely would remain uneffected). To confirm the state of this code prior to the
+earliest Zenodo upload, please see commit 
+2ee67db4250339e3308cd611e260528d9c129639 and earlier of the repo at
+https://github.com/DBay-ani/FanoosFurtherMaterials ; the file manifest.xml found
+there explains how to confirm the integrity and state of the copies of the code
+there-included.
+
+^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^_^
 
 
 V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V~V
